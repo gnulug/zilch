@@ -7,7 +7,7 @@ _I am open to suggestions for better names._
 
 ## Why use Nix package manager?
 
-Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, is compiled from source. Compiling everything from source enables portability, ease of patching, reproducibility, and other important qualities.
+Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, can be compiled from source. Compiling from source enables portability, ease of patching, reproducibility, and other important qualities. Compiling from source can be slow, but commonly used packages are compiled into a package cache. Most Nix builds are bit-wise reproducible[^bitwise-reproducible], so Nix can transparently "switch" between cached and built-on-your-machine packages. The binary cache is verifiable. This gives Nix the customizability of compile-from-source package mangaers like Portage with the speed of binary package managers like Apt-get.
 
 Features of Nix that a power user would like:
 
@@ -91,7 +91,9 @@ Rather than implement history and rollback directly in the CLI, as the official 
 
 - I must thank [Evan Widlosky](http://evan.widloski.com/) for the idea and inspiration.
 
-[^defn-reproducible]: Acording to the [ACM][ACM-repr], reproducibility means the ability for _another_ user/system to get the _same_ result. "Sameness" can be evaluated at many different levels; Nix can guarantee that the initial source codes fed into the build toolchain are identical. Nix disables certain features, like datestamping, that are known to create non-reproducible builds. Often "same source" + "disabling known non-reproducible features" is enough to get a bitwise identical output from the build toolchain, but not always. In some package sets tested by [R13Y], more than 95% of the package builds compiled with Nix are bitwise identical.
+[^defn-reproducible]: Acording to the [ACM][ACM-repr], reproducibility means the ability for _another_ user/system to get the _same_ result. "Sameness" can be evaluated at many different levels; Nix can guarantee that the initial source codes fed into the build toolchain are identical. Nix disables certain features, like datestamping, that are known to create non-reproducible builds. Often "same source" + "disabling known non-reproducible features" is enough to get a bitwise identical output from the build toolchain, but not always.
+
+[^bitwise-reproducible]: In some package sets tested by [R13Y], more than 95% of the package builds compiled with Nix are bitwise identical.
 
 [^manifest]: `nix-env` and `nix profile` do manipulate `manifest.nix` or `manifest.json`, respectively. However, this is hidden from the user, and there is no documentation on how to share these between machines or users. They are also global-scope, not amenable to usage with direnvs.
 
