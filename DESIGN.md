@@ -66,23 +66,9 @@ Files:
 - `packages.toml` is a TOML description of packages and versions the user wants installed. [Devshell.toml] takes a similar approach.
 - `$NIX_HELPER_CONFIG_FILE` is a configuration file for `$NIX_HELPER`, defaulting to `$XDG_CONFIG_HOME/zil/settings.toml`.
 
-### Commands
+# Commands
 
-- `zil add $package`: Adds `$package` to `packages.toml`.
-  - `$package` and variants will be searched in Nixpkgs and possibly others such as NUR, [Nix Flake search], or [flakehub]. User can specify `$package=$version`, and the tool will attempt a strategy similar to [the search tool on Marcelo Lazaroni's website][lazamar].
-  - If `$package` is part of a package set the zil will "do the commonly expected thing", e.g., if the package request was Python's `requests`, zil will add it to the Python package's environment.
-  - zil will give a preview of the changes (list of packages/versions to be installed) and confirm with the user, like `apt`.
-  - If the user set up shell integration, this command will modify the _current_ shell environment, which is a departure from the original Nix CLI, but more similar to `apt` and `cargo`. Otherwise, the tool may start a new shell or exec a new shell with the package in the environment. zil will work with [direnv]'s auto updating.
-- `zil search $package`: Searches names and titles for `$package` over all repositories available to `zil add`.
-- `zil remove $package`: Removes `package` from `packages.toml`. However, this will not run garbage collection unless a flag is passed. Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
-- `zil run $package`: Similar semantics as `zil add`, but just runs a command or a shell without modifying `packages.toml`.
-- `zil upgrade`: Tries to upgrade all packages (without changing which repo the package comes from). Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
-- `zil modify $package`: Downloads the source code and build recipe for a package, and lets the user modify it. They may later use `zil add $path_to_modified_package`. The modified package may be distributed in whole or by patch in the current repository or a new repository, or it may not be distributed at all, but in that case, `zil` would warn the user that their system is irreproducible.
-- `zil reload`: Re-evaluate `flake.nix` in light of changes to it or `packages.toml`. Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
-
-Rather than implement history and rollback directly in the CLI, as the official Nix CLI does, `flake.{nix,lock}` and `packages.toml` can be tracked in Git, and redeployed from that.
-
-## Examples
+### Install/Add
 
 ```
 zil install firefox
@@ -90,33 +76,116 @@ zil install firefox==1.2.3
 zil install firefox --source=flakehub
 # folder containing flake.nix
 zil install path/to/firefox
+```
 
+
+- `zil add $package`: Adds `$package` to `packages.toml`.
+  - `$package` and variants will be searched in Nixpkgs and possibly others such as NUR, [Nix Flake search], or [flakehub]. User can specify `$package=$version`, and the tool will attempt a strategy similar to [the search tool on Marcelo Lazaroni's website][lazamar].
+  - If `$package` is part of a package set the zil will "do the commonly expected thing", e.g., if the package request was Python's `requests`, zil will add it to the Python package's environment.
+  - zil will give a preview of the changes (list of packages/versions to be installed) and confirm with the user, like `apt`.
+  - If the user set up shell integration, this command will modify the _current_ shell environment, which is a departure from the original Nix CLI, but more similar to `apt` and `cargo`. Otherwise, the tool may start a new shell or exec a new shell with the package in the environment. zil will work with [direnv]'s auto updating.
+  
+### Search
+
+Search available packages
+
+```
 zil search firefox
 zil search firefox --source=flakehub
+# should also say whether a package is installed
+```
 
+- `zil search $package`: Searches names and titles for `$package` over all repositories available to `zil add`.
+
+```
+shadowfox (2.2.0)
+  Universal dark theme for Firefox while adhering to the modern design principles set by Mozilla
+  Installed: (2.1.0) from flakehub
+  Installed: (2.0.0) from https://..../foo/bar
+```
+
+### List
+
+List installed packages
+
+```
+zil list
+zil list --all
+# list installed packages
+```
+
+### Remove/Uninstall
+
+```
 zil remove firefox
 zil remove firefox==1.2.3
 zil remove firefox==1.2.3 --source=flakehub
 # packages.toml needs to store the source
+```
 
+- `zil remove $package`: Removes `package` from `packages.toml`. However, this will not run garbage collection unless a flag is passed. Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
+
+### Upgrade and Update
+
+```
 zil upgrade
 zil upgrade firefox
-  - zil update
-  - zil install firefox
+  - same as (zil update, zil install firefox)
 zil upgrade firefox --source=flakehub
+```
+- `zil upgrade`: Tries to upgrade all packages (without changing which repo the package comes from). Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
 
+### History
+
+Install/Uninstall history
+
+```
 zil history
+```
 
+- optional rollback?
+
+### Modify
+
+```
 zil modify firefox
 zil modify firefox==1.2.3
 zil modify firefox==1.2.3 --source=flakehub
 ```
 
+- `zil modify $package`: Downloads the source code and build recipe for a package, and lets the user modify it. They may later use `zil add $path_to_modified_package`. The modified package may be distributed in whole or by patch in the current repository or a new repository, or it may not be distributed at all, but in that case, `zil` would warn the user that their system is irreproducible.
+
+### Info
+
+Print information about a specific package
+
 ```
-zil install firefox
-- search nixpkgs unstable for attribute=="firefox"
-  - resolve to triple (source, commit/hash, attribute)
+zil info firefox
 ```
+
+### Activate/Shell
+
+Activate a zilch environment.  Mutate current environment
+
+```
+zil activate path/to/dir
+zil activate path/to/dir/zilch.toml
+```
+
+Start a new shell or program in a zilch environment.
+
+```
+zil shell path/to/dir
+zil exec path/to/dir/zilch.toml PROGRAM
+```
+
+### Others
+
+- `zil run $package`: Similar semantics as `zil add`, but just runs a command or a shell without modifying `packages.toml`.
+- `zil reload`: Re-evaluate `flake.nix` in light of changes to it or `packages.toml`. Like `zil add`, this command will preview the changes, prompt for acceptance, and modify the current shell.
+
+Rather than implement history and rollback directly in the CLI, as the official Nix CLI does, `flake.{nix,lock}` and `packages.toml` can be tracked in Git, and redeployed from that.
+
 
 ## More info
 
