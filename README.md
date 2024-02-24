@@ -1,20 +1,20 @@
 # Nix-helper
 
-Nix could be a useful package manager for power users and developers, but it is notoriously difficult to learn.
+Nix could be a useful package manager for power users, developers, and administrators, but it is notoriously difficult to learn.
 This work provides a CLI wrapper, simplifying the initial part of the learning curve.
 
 _I am open to suggestions for better names._
 
 ## Why use Nix package manager?
 
-Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, can be compiled from source. Compiling from source enables portability, ease of patching, reproducibility, and other important qualities. Compiling from source can be slow, but commonly used packages are compiled into a package cache. Most Nix builds are bit-wise reproducible[^bitwise-reproducible], so Nix can transparently "switch" between cached and built-on-your-machine packages. The binary cache is verifiable. This gives Nix the customizability of compile-from-source package managers like Portage with the speed of binary package managers like Apt-get.
+Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, can be compiled from source. Compiling from source enables portability, ease of patching, reproducibility, and other important qualities. Compiling from source can be slow, but commonly used packages are compiled into a package cache. Most Nix builds are bit-wise reproducible[^bitwise-reproducible], so Nix can transparently "switch" between cached and built-on-your-machine packages. The binary cache is verifiable. This gives Nix the customizability of source-based package mangaers like Portage with the speed of binary package managers like Apt-get.
 
 Features of Nix that a power user would like:
 
 - Works on any Linux distro, MacOS, Windows with WSL2, or others.
 - Does not need root
 - Has many more packages and is more up-to-date than other package repositories according to [Repology].
-- Can roll back or forewards any package transaction
+- Can roll back or forward any package transaction
 
 Features of Nix that a developer would like:
 
@@ -23,24 +23,28 @@ Features of Nix that a developer would like:
 - Can manage project-specific or user-level software environment
 - Simplifies using a custom fork or patch for compiled dependencies
 
+Features of Nix that a system administrator would like:
+
+- TBD
+
 ## Why does Nix need a wrapper?
 
-The difficulty in learning Nix comes many sources including:
+The difficulty in learning or deploying Nix comes from many sources including:
 
 1. Nix represents a new way of thinking about package management
-2. Nix uses a new, functional, lazy language with idiosyncratic syntax
+2. Nix uses a functional, lazy language with idiosyncratic syntax, the Nix language
 3. The Nix CLI is unlike other package manager CLI's, such as `apt`, `dnf`, `cargo`, and `pip`
 
-This work aims to provide a wrapper CLI for Nix addressing points 2 and 3. Our CLI is similar to other package managers that the user may already be familiar with. Also, use of our CLI would obviate the need for the user to interact directly with the Nix language for simple operations.
+This work aims to provide a wrapper CLI for Nix addressing points two and three. Our CLI is similar to other package managers that the user may already be familiar with. Also, use of our CLI would obviate the need for the user to interact directly with the Nix language for simple operations.
 
 Nix has two "official" CLIs:
 
-- The stable interface consisting of set of binaries named `nix-shell`, `nix-store`, `nix-env`, etc., and an
+- The stable interface consisting of set of binaries named `nix-shell`, `nix-store`, `nix-env`, etc., and
 - The experimental interface consisting of a single binary named `nix` with subcommands for `nix shell`, `nix store`, and `nix profile`
 
 The stable interface uses hard-to-remember shortcuts. For example, [search.nixos.org] suggests installing firefox with `nix-env -iA nixpkgs.firefox`. The flag `-i` stands for "install", but `-A` stands for "attr". What exactly does that mean? Why must we write `nixpkgs.` before `firefox`?
 
-How does one search for packages from the commandline? `nix-env -qaP firefox`. Why is this a `nix-env ...` command? Does it manipulate the environment?
+How does one search for packages from the command-line? `nix-env -qaP firefox`. Why is this a `nix-env ...` command? Does it manipulate the environment?
 
 The experimental interface is somewhat better. It uses `nix profile install nixpkgs#firefox` or `nix search nixpkgs firefox`, at the cost of not being enabled by default. However, it shares these same problems with the stable interface:
 - It is still too verbose.
@@ -51,8 +55,8 @@ The experimental interface is somewhat better. It uses `nix profile install nixp
 
 - Look like Cargo. Cargo is the package manager for Rust. Operations have simple and predictable translation into Cargo commands and vice versa. The interface for most users is `cargo add $package` and `cargo remove $package`. All of these commands modify a spec-file (`Cargo.toml`) and a lock-file (`Cargo.lock`).
 - Prevent users from needing to use the Nix expression language and Nix CLI.
-  - There is an inherent tradeoff between simplicity and power; a table saw requires more knowledge to use than a hand saw. Nix-helper is a spimpler/less-powerful balance-point than the original Nix CLI. Even when Nix is hidden behind a simple interface, the virtues of its design should still yield a more powerful package manager than a system-level package manager. _All_ of the points raised in "Why use Nix?" should still be achievable. It gives users an "advance" on some of the features of Nix without requiring "upfront payment" learning Nix.
-  - However, Nix-helper _does not preclude_ using underlying Nix CLI or writing custom Nix expressions. There is still a single source of truth, but it can be manipulated by either automated tools, underlying Nix CLI, or by hand. Perhaps even advanced Nix users will use Nix-helper because it automates the editing they would do by hand in common cases. This is also an escape-hatch for limitations of Nix-helper, allowing Nix-helper to focus on simple but common cases.
+  - There is an inherent tradeoff between simplicity and power; a table saw requires more knowledge to use than a hand saw. Nix-helper is a simpler/less-powerful balance-point than the original Nix CLI. Even when Nix is hidden behind a simple interface, the virtues of its design should still yield a more powerful package manager than a system-level package manager. _All_ of the points raised in "Why use Nix?" should still be achievable. It gives users an "advance" on some of the features of Nix without requiring "upfront payment" learning Nix.
+  - However, Nix-helper _does not preclude_ using the underlying Nix CLI or writing custom Nix expressions. There is still a single source of truth, but it can be manipulated by either automated tools, the underlying Nix CLI, or by hand. Perhaps even advanced Nix users will use Nix-helper because it automates the editing they would do by hand in common cases. This is also an escape-hatch for limitations of Nix-helper, allowing Nix-helper to focus on simple but common cases.
 
 <!-- Learning curve figure, shows time invested on the X and features on the Y. Nix is useless unless you invest a lot of time, then you get a pretty powerful set of features that grow linearly as you invest more time. Nix-helper provides a point where you invest very little time, but you still get some features. Nix-helper smoothly transitions to Nix's curve itself. Using Nix-helper does not preclude the user from also using underlying Nix. -->
 
@@ -89,7 +93,7 @@ Rather than implement history and rollback directly in the CLI, as the official 
 
 ## Acknowledgements
 
-- [Evan Widlosky](http://evan.widloski.com/) suggested this idea. I may have been to used to the current CLI to imagine that it could be better.
+- [Evan Widlosky](http://evan.widloski.com/) suggested this idea. I may have been too familiar with the stable CLI to imagine any improvements.
 - [J.T. Parrish](https://github.com/jtparrish) suggested a clarification on when Nix builds from source.
 
 [^defn-reproducible]: Acording to the [ACM][ACM-repr], reproducibility means the ability for _another_ user/system to get the _same_ result. "Sameness" can be evaluated at many different levels; Nix can guarantee that the initial source codes fed into the build toolchain are identical. Nix disables certain features, like datestamping, that are known to create non-reproducible builds. Often "same source" + "disabling known non-reproducible features" is enough to get a bitwise identical output from the build toolchain, but not always.
