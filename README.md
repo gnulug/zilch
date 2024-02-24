@@ -29,22 +29,22 @@ Features of Nix that a system administrator would like:
 
 ## Why does Nix need a wrapper?
 
-The difficulty in learning Nix comes many sources including:
+The difficulty in learning or deploying Nix comes from many sources including:
 
 1. Nix represents a new way of thinking about package management
-2. Nix uses a new, functional, lazy language with idiosyncratic syntax
+2. Nix uses a functional, lazy language with idiosyncratic syntax, the Nix language
 3. The Nix CLI is unlike other package manager CLI's, such as `apt`, `dnf`, `cargo`, and `pip`
 
-This work aims to provide a wrapper CLI for Nix addressing points 2 and 3. Our CLI is similar to other package managers that the user may already be familiar with. Also, use of our CLI would obviate the need for the user to interact directly with the Nix language for simple operations.
+This work aims to provide a wrapper CLI for Nix addressing points two and three. Our CLI is similar to other package managers that the user may already be familiar with. Also, use of our CLI would obviate the need for the user to interact directly with the Nix language for simple operations.
 
 Nix has two "official" CLIs:
 
-- The stable interface consisting of set of binaries named `nix-shell`, `nix-store`, `nix-env`, etc., and an
+- The stable interface consisting of set of binaries named `nix-shell`, `nix-store`, `nix-env`, etc., and
 - The experimental interface consisting of a single binary named `nix` with subcommands for `nix shell`, `nix store`, and `nix profile`
 
 The stable interface uses hard-to-remember shortcuts. For example, [search.nixos.org] suggests installing firefox with `nix-env -iA nixpkgs.firefox`. The flag `-i` stands for "install", but `-A` stands for "attr". What exactly does that mean? Why must we write `nixpkgs.` before `firefox`?
 
-How does one search for packages from the commandline? `nix-env -qaP firefox`. Why is this a `nix-env ...` command? Does it manipulate the environment?
+How does one search for packages from the command-line? `nix-env -qaP firefox`. Why is this a `nix-env ...` command? Does it manipulate the environment?
 
 The experimental interface is somewhat better. It uses `nix profile install nixpkgs#firefox` or `nix search nixpkgs firefox`, at the cost of not being enabled by default. However, it shares these same problems with the stable interface:
 - It is still too verbose.
