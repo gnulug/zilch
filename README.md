@@ -93,7 +93,7 @@ Rather than implement history and rollback directly in the CLI, as the official 
 
 ## Acknowledgements
 
-- [Evan Widlosky](http://evan.widloski.com/) suggested this idea. I may have been to used to the current CLI to imagine that it could be better.
+- [Evan Widlosky](http://evan.widloski.com/) suggested this idea. I may have been too familiar with the stable CLI to imagine any improvements.
 - [J.T. Parrish](https://github.com/jtparrish) suggested a clarification on when Nix builds from source.
 
 [^defn-reproducible]: Acording to the [ACM][ACM-repr], reproducibility means the ability for _another_ user/system to get the _same_ result. "Sameness" can be evaluated at many different levels; Nix can guarantee that the initial source codes fed into the build toolchain are identical. Nix disables certain features, like datestamping, that are known to create non-reproducible builds. Often "same source" + "disabling known non-reproducible features" is enough to get a bitwise identical output from the build toolchain, but not always.
