@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
-import dataclasses
 import pathlib
 import click
 import subprocess
@@ -29,3 +27,21 @@ def search(term, source):
         if p.description is not '':
             console.print(f"  {p.description}")
         console.print('')
+
+@cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.argument("path", type=pathlib.Path)
+@click.argument('cmd', nargs=-1)
+def shell(path, cmd):
+    if not cmd:
+        cmd = (os.environ.get("SHELL", "/bin/bash"),)
+    project = Project.from_path(path)
+    project.develop(*cmd)
+
+@click.group(no_args_is_help=True)
+@click.option('--debug/--no-debug', default=False)
+def cli(debug):
+    # click.echo(f"Debug mode is {'on' if debug else 'off'}")
+    pass
+
+if __name__ == "__main__":
+    cli()

@@ -76,6 +76,8 @@ zil install firefox==1.2.3
 zil install firefox --source=flakehub
 # folder containing flake.nix
 zil install path/to/firefox
+# FIXME
+zil install firefox==1.2.3 --source=flakehub --system=arm7
 ```
 
 

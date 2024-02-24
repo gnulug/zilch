@@ -9,6 +9,28 @@ import typing
 import tempfile
 root = pathlib.Path(__file__).parent
 
+def parse_attrpath(path) -> tuple[str, str, str]:
+    """Parse attribute path from 'nix search'
+
+    Args:
+        path (str): attribute path
+
+    Returns:
+        (attr_family, system, name)
+    """
+    parts = path.split('.')
+    return parts[0], parts[1], '.'.join(parts[2:])
+
+def get_system() -> str:
+    """Get the Nix current system/platform"""
+    system = subprocess.run(
+        ["nix", "eval", "--impure", "--raw", "--expr", "builtins.currentSystem"],
+        check=True,
+        capture_output=True,
+        text=True
+    ).stdout.strip()
+    return system
+
 
 @dataclasses.dataclass(frozen=True)
 class Project:
@@ -19,7 +41,7 @@ class Project:
     @functools.cached_property
     def packages(self) -> list[NixPackage]:
         return [
-            NixPackage(package["source"], package["source_version"], package["version"], package["attribute"])
+            NixPackage(f"legacyPackages.{get_system()}." + package['name'], package["source"], package["source_version"])
             for package in self.toml_doc.get("packages", [])
         ]
 
@@ -105,21 +127,46 @@ class NixPackage:
     Note that in Nix lingo, the "source" is really a flake, however we want to hide nix-specific terminology.
 
     """
-    source: str
-    source_version: str | None
-    version: str | None
     attribute: str
+    source: str
+    source_version: str | None = None
+    version: str | None = None
+    description: str | None = None
 
     @property
     def source_pair(self) -> tuple[str, str]:
         return (self.source, self.source_version)
 
+    @property
+    def flake_ver(self) -> tuple[str, str]:
+        return (self.flake, self.version)
+
+    @property
+    def family(self) -> str:
+        """Attribute family.  e.g legacyPackages"""
+        return self.attribute.split('.', 2)[0]
+
+    @property
+    def system(self) -> str:
+        """Architecture and OS"""
+        return self.attribute.split('.', 2)[1]
+
+    @property
+    def name(self) -> str:
+        """Package name"""
+        return self.attribute.split('.', 2)[2]
+
 
 if __name__ == "__main__":
     project = Project(
         path=pathlib.Path("test"),
-        packages=[
-            NixPackage("github:NixOS/nixpkgs/nixpkgs-unstable", "f63ce824cd2f036216eb5f637dfef31e1a03ee89", "aria")
+        toml_doc={'packages':[
+            dict(
+                source="github:NixOS/nixpkgs/nixpkgs-unstable",
+                name="aria",
+                source_version="f63ce824cd2f036216eb5f637dfef31e1a03ee89",
+            )
         ],
+        }
     )
-    project.write_out()
+    project.develop(b'env')
