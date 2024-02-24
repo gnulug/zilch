@@ -12,7 +12,7 @@ from api import NixPackage, Project
 from console import console
 
 SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
-SEARCH_CMD = lambda source, term: ['nix', 'search', source, *terms, '--json']
+SEARCH_CMD = lambda source, terms: ['nix', 'search', source, *terms, '--json']
 
 @click.group(no_args_is_help=True)
 @click.option('--debug/--no-debug', default=False)
