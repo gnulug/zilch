@@ -82,6 +82,42 @@ Files:
 
 Rather than implement history and rollback directly in the CLI, as the official Nix CLI does, `flake.{nix,lock}` and `packages.toml` can be tracked in Git, and redeployed from that.
 
+## Examples
+
+```
+zil install firefox
+zil install firefox==1.2.3
+zil install firefox --source=flakehub
+# folder containing flake.nix
+zil install path/to/firefox
+
+zil search firefox
+zil search firefox --source=flakehub
+
+zil remove firefox
+zil remove firefox==1.2.3
+zil remove firefox==1.2.3 --source=flakehub
+# packages.toml needs to store the source
+
+zil upgrade
+zil upgrade firefox
+  - zil update
+  - zil install firefox
+zil upgrade firefox --source=flakehub
+
+zil history
+
+zil modify firefox
+zil modify firefox==1.2.3
+zil modify firefox==1.2.3 --source=flakehub
+```
+
+```
+zil install firefox
+- search nixpkgs unstable for attribute=="firefox"
+  - resolve to triple (source, commit/hash, attribute)
+```
+
 ## More info
 
 - I welcome PR's and GitHub issues on this document.
