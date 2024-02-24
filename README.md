@@ -1,6 +1,6 @@
 # Nix-helper
 
-Nix could be a useful package manager for power users and developers, but it is notoriously difficult to learn.
+Nix could be a useful package manager for power users, developers, and administrators, but it is notoriously difficult to learn.
 This work provides a CLI wrapper, simplifying the initial part of the learning curve.
 
 _I am open to suggestions for better names._
