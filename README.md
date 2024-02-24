@@ -7,7 +7,7 @@ _I am open to suggestions for better names._
 
 ## Why use Nix package manager?
 
-Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, can be compiled from source. Compiling from source enables portability, ease of patching, reproducibility, and other important qualities. Compiling from source can be slow, but commonly used packages are compiled into a package cache. Most Nix builds are bit-wise reproducible[^bitwise-reproducible], so Nix can transparently "switch" between cached and built-on-your-machine packages. The binary cache is verifiable. This gives Nix the customizability of compile-from-source package mangaers like Portage with the speed of binary package managers like Apt-get.
+Nix is a cross-platform package manager that emphasizes reproducibility. Except for a small set of bootstrap sources, every Nix package, including the transitive dependencies of those packages, can be compiled from source. Compiling from source enables portability, ease of patching, reproducibility, and other important qualities. Compiling from source can be slow, but commonly used packages are compiled into a package cache. Most Nix builds are bit-wise reproducible[^bitwise-reproducible], so Nix can transparently "switch" between cached and built-on-your-machine packages. The binary cache is verifiable. This gives Nix the customizability of source-based package mangaers like Portage with the speed of binary package managers like Apt-get.
 
 Features of Nix that a power user would like:
 
