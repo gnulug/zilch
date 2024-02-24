@@ -14,7 +14,7 @@ Features of Nix that a power user would like:
 - Works on any Linux distro, MacOS, Windows with WSL2, or others.
 - Does not need root
 - Has many more packages and is more up-to-date than other package repositories according to [Repology].
-- Can roll back or forewards any package transaction
+- Can roll back or forward any package transaction
 
 Features of Nix that a developer would like:
 
@@ -22,6 +22,10 @@ Features of Nix that a developer would like:
 - Detects when malicious or compromised package repositories feed a different package than the one seen before
 - Can manage project-specific or user-level software environment
 - Simplifies using a custom fork or patch for compiled dependencies
+
+Features of Nix that a system administrator would like:
+
+- TBD
 
 ## Why does Nix need a wrapper?
 
