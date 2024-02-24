@@ -1,3 +1,47 @@
-* CLI mock
-* Make it par
-* Nix functionality
+* TODO [#C] Consolidate Python environments
+https://nixos.wiki/wiki/Python
+
+* TODO [#C] Enable optimizations in Python
+https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
+
+* TODO [#C] Parallelism?
+
+* TODO [#C] Allow unfree? allow broken?
+
+* TODO [#C] Disable checks?
+
+* TODO [#C] Consolidate same sources?
+
+* TODO [#B] Make an installer
+- Install Nix
+- Enable flakes and experimental
+- Install direnv or asdf
+- Install Zilch
+
+* TODO [#B] Compare to alternatives
+- <https://stop-using-nix-env.privatevoid.net/>
+- <https://github.com/lf-/flakey-profile>
+- <https://discourse.nixos.org/t/transitioning-from-imperative-to-declarative-package-management-with-nix-alone/28728>
+- <https://jade.fyi/blog/flakes-arent-real/>
+- Home Manager
+- NixOS
+- Devshell.toml
+
+* TODO [#B] Nix modify $package
+
+* TODO [#B] Zilch should work as project-local or user-local scope
+- Looks for a zilch toml in ., .., ../..
+- Have a ZILCH_PATH, which defaults to $XDG_CONFIG_HOME/zilch/
+- Have a --path which overrides ZILCH_PATH
+
+* TODO [#B] Direnv
+
+* TODO [#A] zilch activate <path>
+
+* TODO [#A] zilch install
+
+* TODO [#A] zilch search prettiness
+
+* TODO [#B] Mutate current environment
+
+* TODO [#B] Figure out how to pin nixpkgs
