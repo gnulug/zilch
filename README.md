@@ -146,3 +146,9 @@ zil install firefox
 [lazamar]: https://lazamar.co.uk/nix-versions/
 [direnv]: https://direnv.net/
 
+# Other links
+
+- <https://stop-using-nix-env.privatevoid.net/>
+- <https://github.com/lf-/flakey-profile>
+- <https://discourse.nixos.org/t/transitioning-from-imperative-to-declarative-package-management-with-nix-alone/28728>
+- <https://jade.fyi/blog/flakes-arent-real/>
