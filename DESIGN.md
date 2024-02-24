@@ -80,6 +80,17 @@ zil install path/to/firefox
 zil install firefox==1.2.3 --source=flakehub --system=arm7
 ```
 
+```
+# Here be Issues
+> zil install passhole
+fail
+> zil install python311Packages.passhole
+> passhole -h
+Python not found
+> zil install python311
+
+```
+
 
 - `zil add $package`: Adds `$package` to `packages.toml`.
   - `$package` and variants will be searched in Nixpkgs and possibly others such as NUR, [Nix Flake search], or [flakehub]. User can specify `$package=$version`, and the tool will attempt a strategy similar to [the search tool on Marcelo Lazaroni's website][lazamar].
@@ -159,10 +170,12 @@ zil modify firefox==1.2.3 --source=flakehub
 
 ### Info
 
-Print information about a specific package
+Print information about a specific installed package
+Maybe support uninstalled packages in the future
 
 ```
 zil info firefox
+zil info firefox --source=flakehub
 ```
 
 ### Activate/Shell

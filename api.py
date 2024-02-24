@@ -157,16 +157,17 @@ class NixPackage:
         return self.attribute.split('.', 2)[2]
 
 
+project = Project(
+    path=pathlib.Path("test"),
+    toml_doc={'packages':[
+        dict(
+            source="github:NixOS/nixpkgs/nixpkgs-unstable",
+            name="aria",
+            source_version="f63ce824cd2f036216eb5f637dfef31e1a03ee89",
+        )
+    ],
+    }
+)
+
 if __name__ == "__main__":
-    project = Project(
-        path=pathlib.Path("test"),
-        toml_doc={'packages':[
-            dict(
-                source="github:NixOS/nixpkgs/nixpkgs-unstable",
-                name="aria",
-                source_version="f63ce824cd2f036216eb5f637dfef31e1a03ee89",
-            )
-        ],
-        }
-    )
     project.develop(b'env')
