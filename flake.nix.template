@@ -5,14 +5,17 @@
     INPUTS_HERE
   };
   outputs = { self, flake-utils, nixpkgs, ... }@inputs:
-    flake-utils.lib.eachDefaultSystem (system:
-      {
+    flake-utils.lib.eachDefaultSystem (
+      system: {
         devShells = {
           default = nixpkgs.legacyPackages.${system}.mkShell {
             buildInputs = [
               PACKAGES_HERE
             ];
           };
+        };
+        packages = {
+          NAME_EQUALS_PACKAGE_HERE
         };
       }
     )

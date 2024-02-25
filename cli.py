@@ -4,6 +4,8 @@ import pathlib
 import click
 import subprocess
 import json
+import os
+import platformdirs
 from dataclasses import asdict
 from rich.table import Table
 from rich.padding import Padding
@@ -12,26 +14,36 @@ from api import NixPackage, Project
 from console import console
 
 SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
-SEARCH_CMD = lambda source, terms: ['nix', 'search', source, *terms, '--json']
 
 @click.group(no_args_is_help=True)
-@click.option('--debug/--no-debug', default=False)
-def cli(debug):
-    # click.echo(f"Debug mode is {'on' if debug else 'off'}")
-    pass
+@click.option('--verbose', default=True, is_flag=True)
+@click.option('--source', default=SOURCE)
+@click.option(
+    "--path",
+    type=pathlib.Path,
+    default=pathlib.Path(os.getenv("ZILCH_PATH", platformdirs.user_config_dir() + "/zilch")),
+    help="path/to/dir containing zilch.toml or path/to/zilch.toml. Defaults to $ZILCH_PATH or $XDG_CONFIG_HOME (or platform equivalent)",
+)
+@click.pass_context
+def cli(ctx, verbose: bool, source: bool, path: pathlib.Path):
+    ctx.ensure_object(dict)
+    ctx.obj["verbose"] = verbose
+    ctx.obj["source"] = source
+    ctx.obj["path"] = path
+    if ctx.obj["verbose"]:
+        print("Using zilch.toml from", ctx.obj["path"])
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('terms', nargs=-1)
-@click.option('--source', default=SOURCE)
-def search(terms, source):
+@click.pass_context
+def search(ctx, terms: list[str]):
     o = subprocess.run(
-        SEARCH_CMD(source, terms),
+        ['nix', 'search', ctx.obj["source"], *terms, '--json'],
         capture_output=True,
         check=True
     )
-    packages = []
     for k, v in json.loads(o.stdout).items():
-        p = NixPackage(k, source, None, v['version'], v['description'])
+        p = NixPackage(k, ctx.obj["source"], None, v['version'], v['description'])
         console.print(f"[green]{p.name}[/green] ({p.version})")
         if p.description != '':
             console.print(f"  {p.description}")
@@ -41,10 +53,19 @@ def search(terms, source):
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('term')
 @click.option('--source', default=SOURCE)
-def info(term, source):
-    from api import project
+@click.option(
+    "--any-source/--match-source",
+    default=True,
+    help=(
+        "Whether to remove every package of this name regardless of source,"
+        " or only those with a matching source"
+    ),
+)
+@click.pass_context
+def info(ctx, term: str, any_source: bool):
+    project = Project.from_path(ctx.obj["path"])
     for p in project.packages:
-        if p.name == term and (p.source is None or p.source == source):
+        if p.name == term and (p.source is None or any_source or p.source == ctx.obj["source"]):
             t = Table(show_lines=False, show_header=False, box=None, pad_edge=False)
             t.add_column()
             t.add_column()
@@ -59,13 +80,45 @@ def info(term, source):
 
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
-@click.argument("path", type=pathlib.Path)
+@click.argument('packages', nargs=-1)
+@click.pass_context
+def install(ctx, packages: list[str]):
+    project = Project.from_path(ctx.obj["path"])
+    new_packages = [
+        project.get_latest_compatible(package, ctx.obj["source"])
+        for package in packages
+    ]
+    project.install(new_packages)
+    project.write()
+
+@cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.option(
+    "--any-source/--match-source",
+    default=True,
+    help=(
+        "Whether to remove every package of this name regardless of source,"
+        " or only those with a matching source"
+    ),
+)
+@click.argument('packages', nargs=-1)
+@click.pass_context
+def remove(ctx, any_source: bool, packages: list[str]):
+    project = Project.from_path(ctx.obj["path"])
+    new_packages = list(filter(
+        project.get_existing_package(package, ctx.obj["source"], any_source=any_source)
+        for package in packages
+    ))
+    project.remove(new_packages)
+    project.write()
+
+@cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('cmd', nargs=-1)
-def shell(path, cmd):
+@click.pass_context
+def shell(ctx, cmd: list[str]):
     if not cmd:
-        cmd = (os.environ.get("SHELL", "/bin/bash"),)
-    project = Project.from_path(path)
-    project.develop(*cmd)
+        cmd = [os.environ.get("SHELL", "/bin/bash")]
+    project = Project.from_path(ctx.obj["path"])
+    project.shell(cmd, interactive=True)
 
 if __name__ == "__main__":
     cli()
