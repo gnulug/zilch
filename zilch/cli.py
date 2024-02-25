@@ -4,6 +4,7 @@ import subprocess
 import json
 import os
 import platformdirs
+import typing
 from dataclasses import asdict
 from rich.table import Table
 from rich.padding import Padding
@@ -23,7 +24,7 @@ SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
     help="path/to/dir containing zilch.toml or path/to/zilch.toml. Defaults to $ZILCH_PATH or $XDG_CONFIG_HOME (or platform equivalent)",
 )
 @click.pass_context
-def cli(ctx, verbose: bool, source: bool, path: pathlib.Path):
+def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> None:
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     ctx.obj["source"] = source
@@ -34,7 +35,7 @@ def cli(ctx, verbose: bool, source: bool, path: pathlib.Path):
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('terms', nargs=-1)
 @click.pass_context
-def search(ctx, terms: list[str]):
+def search(ctx: click.Context, terms: list[str]) -> None:
     o = subprocess.run(
         ['nix', 'search', ctx.obj["source"], *terms, '--json'],
         capture_output=True,
@@ -60,7 +61,7 @@ def search(ctx, terms: list[str]):
     ),
 )
 @click.pass_context
-def info(ctx, term: str, any_source: bool):
+def info(ctx: click.Context, term: str, any_source: bool) -> None:
     project = Project.from_path(ctx.obj["path"])
     for p in project.packages:
         if p.name == term and (p.source is None or any_source or p.source == ctx.obj["source"]):
@@ -80,14 +81,19 @@ def info(ctx, term: str, any_source: bool):
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('packages', nargs=-1)
 @click.pass_context
-def install(ctx, packages: list[str]):
+def install(ctx: click.Context, packages: list[str]) -> None:
     project = Project.from_path(ctx.obj["path"])
     new_packages = [
         project.get_latest_compatible(package, ctx.obj["source"])
         for package in packages
     ]
     project.install(new_packages)
-    project.write()
+
+@cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.pass_context
+def autoremove(ctx: click.Context) -> None:
+    project = Project.from_path(ctx.obj["path"])
+    project.autoremove()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.option(
@@ -100,20 +106,23 @@ def install(ctx, packages: list[str]):
 )
 @click.argument('packages', nargs=-1)
 @click.pass_context
-def remove(ctx, any_source: bool, packages: list[str]):
+def remove(ctx: click.Context, any_source: bool, packages: list[str]) -> None:
     project = Project.from_path(ctx.obj["path"])
-    new_packages = list(filter(
-        project.get_existing_package(package, ctx.obj["source"], any_source=any_source)
-        for package in packages
-    ))
+    new_packages = typing.cast(list[NixPackage], list(filter(
+        bool,
+        (
+            project.get_existing_package(package, ctx.obj["source"], any_source=any_source)
+            for package in packages
+        ),
+    )))
     project.remove(new_packages)
-    project.write()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('cmd', nargs=-1)
 @click.pass_context
-def shell(ctx, cmd: list[str]):
+def shell(ctx: click.Context, cmd: list[str]) -> None:
     if not cmd:
         cmd = [os.environ.get("SHELL", "/bin/bash")]
     project = Project.from_path(ctx.obj["path"])
-    project.shell(cmd, interactive=True)
+    proc = project.shell(cmd, interactive=True)
+    ctx.exit(proc.returncode)

@@ -1,7 +1,10 @@
 from __future__ import annotations
 import tomlkit
 import functools
+import os
+import urllib.parse
 import sys
+import platformdirs
 import dataclasses
 import tempfile
 import json
@@ -38,40 +41,38 @@ def get_system() -> str:
 class Project:
     """The data in the project-local store"""
     toml_doc: tomlkit.toml_document.TOMLDocument
-    path: pathlib.Path
+    toml_path: pathlib.Path
+    resource_path: pathlib.Path
+    packages: list[NixPackage]
 
-    @functools.cached_property
-    def packages(self) -> list[NixPackage]:
-        return [
+    @staticmethod
+    def from_path(toml_path: pathlib.Path) -> Project:
+        """Initializes a Zilch project from a path/to/dir containing zilch.toml or path/to/zilch.toml"""
+        if toml_path.is_dir():
+            toml_path = toml_path / "zilch.toml"
+        toml_path.parent.mkdir(exist_ok=True, parents=True)
+        if not toml_path.exists():
+            toml_path.write_text("")
+        toml_doc = tomlkit.parse(toml_path.read_text())
+        resource_path = pathlib.Path(platformdirs.user_data_dir()) / "zilch" / urllib.parse.quote(str(toml_path.parent), safe="")
+        if "packages" not in toml_doc:
+            toml_doc.append("packages", tomlkit.aot())
+        packages = [
             NixPackage(
                 f"legacyPackages.{get_system()}.{package['name']}",
                 package["source"],
                 package["source_version"],
             )
-            for package in self.toml_doc.get("packages", [])
+            for package in toml_doc["packages"]
         ]
-
-    def _validate(self) -> None:
-        self.packages # validate that packages parsed correctly
-
-    @staticmethod
-    def from_path(path: pathlib.Path) -> Project:
-        """Initializes a Zilch project from a path/to/dir containing zilch.toml or path/to/zilch.toml"""
-        if path.is_dir():
-            path = path / "zilch.toml"
-        path.parent.mkdir(exist_ok=True, parents=True)
-        if not path.exists():
-            path.write_text("")
-        toml_doc = tomlkit.parse(path.read_text())
-        proj = Project(toml_doc, path)
-        proj._validate()
+        toml_doc.setdefault("version", 1)
+        proj = Project(toml_doc, toml_path, resource_path, packages)
         return proj
 
-    def write(self) -> None:
-        self.toml_doc.setdefault("version", 1)
-        self.path.write_text(tomlkit.dumps(self.toml_doc))
+    def write_toml(self) -> None:
+        self.toml_path.write_text(tomlkit.dumps(self.toml_doc))
 
-    def get_latest_compatible(self, attribute: str, source: str) -> NixPackage:
+    def get_latest_compatible(self, name: str, source: str) -> NixPackage:
         source_version = next(
             (
                 package.source_version
@@ -82,12 +83,12 @@ class Project:
         )
         if source_version:
             return NixPackage(
-                f"legacyPackages.{get_system()}.{attribute}",
+                f"legacyPackages.{get_system()}.{name}",
                 source,
                 source_version,
             )
         else:
-            with tempfile.TemporaryDirectory(delete=False) as _tmpdir:
+            with tempfile.TemporaryDirectory() as _tmpdir:
                 tmpdir = pathlib.Path(_tmpdir)
                 (tmpdir / "flake.nix").write_text(
                     "{ inputs.test.url = \"SOURCE_URL_HERE\"; outputs = inputs: {}; }"
@@ -101,54 +102,74 @@ class Project:
                 )
                 source_version = json.loads((tmpdir / "flake.lock").read_text())["nodes"]["test"]["locked"]["rev"]
             return NixPackage(
-                f"legacyPackages.{get_system()}.{attribute}",
+                f"legacyPackages.{get_system()}.{name}",
                 source,
                 source_version,
             )
 
     def install(self, packages: list[NixPackage]) -> None:
-        self.toml_doc.setdefault("packages", []).extend(
-            {
-                "name": package.name,
-                "source": package.source,
-                "source_version": package.source_version,
-            }
-            for package in packages
-        )
-        self.shell(["true"], False)
+        for package in packages:
+            if package not in self.packages:
+                self.packages.append(package)
+                self.toml_doc["packages"].append({
+                    "name": package.name,
+                    "source": package.source,
+                    "source_version": package.source_version,
+                })
+        self.write_toml()
+        self.sync()
 
-    def get_existing_package(self, attribute: str, source: str, any_source: bool) -> NixPackage | None:
+    def get_existing_package(self, name: str, source: str, any_source: bool) -> NixPackage | None:
         """Returns the NixPackage for an asssociated attribute, if exists"""
-        for package in self.toml_doc.get("packages", []):
-            if package.attribute == attribute and (any_source or package.source == source):
+        for package in self.packages:
+            if package.name == name and (any_source or package.source == source):
                 return package
-        return None
+        else:
+            print(f"Could not find package {attribute} {source} {any_source}")
+            return None
 
-    def get_nix_path(self, packages: list[NixPackage]) -> list[str | None]:
+    def get_nix_path(self, package: NixPackage) -> pathlib.Path:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmproot = pathlib.Path(tmpdir)
             (tmproot / "flake.nix").write_text(self.format_flake())
             source_pairs2name = self.get_source_pairs2name()
-            ret: list[str | None] = []
-            for package in packages:
-                # $ nix path-info --derivation .\#nixosConfigurations.pluto.config.system.build.toplevel
-                path = subprocess.run(
-                    ["nix", "eval", "--raw", f".#{package.attribute}-{source_pairs2name[package.source_pair]}"],
-                    cwd=tmproot,
-                    # capture_output=True,
-                    # text=True,
-                    check=True,
-                ).stdout
-                # ret.append(path)
-                ret.append("false")
-            return ret
+            return pathlib.Path(subprocess.run(
+                ["nix", "eval", "--raw", f".#{package.name}-{source_pairs2name[package.source_pair]}"],
+                cwd=tmproot,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip())
+
+    def is_installed(self, package: NixPackage) -> bool:
+        if package in self.packages:
+            return self.get_nix_path(package).exists()
+        else:
+            return False
 
     def remove(self, packages: list[NixPackage]) -> None:
-        self.shell(["true"], False)
+        any_changes = False
         for package in packages:
-            self.toml_doc.remove(package)
-        raise NotImplementedError()
-        # TODO: nix gc?
+            try:
+                idx = self.packages.index(package)
+            except ValueError:
+                print(f"{package} not installed")
+            else:
+                print(f"Removing {package}")
+                del self.packages[idx]
+                del self.toml_doc["packages"][idx]
+                any_changes = True
+        if any_changes:
+            self.write_toml()
+            self.sync()
+
+    def autoremove(self) -> None:
+        subprocess.run(
+            ["nix", "store", "gc"],
+            check=True,
+            capture_output=False,
+            # This output can get propagated to the user
+        )
 
     def get_source_pairs2name(self) -> typing.Mapping[tuple[str, str], str]:
         source_pairs = {
@@ -168,11 +189,11 @@ class Project:
             for package in self.packages
         ))
         package_lines = [
-            f"inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.attribute}"
+            f"inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.name}"
             for package in self.packages
         ]
         name_equals_package_lines = [
-            f"{package.attribute}-{source_pairs2name[package.source_pair]} = inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.attribute};"
+            f"{package.name}-{source_pairs2name[package.source_pair]} = inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.name};"
             for package in self.packages
         ]
         return (
@@ -183,42 +204,59 @@ class Project:
             .replace("NAME_EQUALS_PACKAGE_HERE", ("\n" + 10 * " ").join(name_equals_package_lines))
         )
 
-    def shell(self, cmd: list[str], interactive: bool) -> subprocess.CompletedProcess[bytes]:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmproot = pathlib.Path(tmpdir)
-            (tmproot / "flake.nix").write_text(self.format_flake())
-            proc = subprocess.run(
-                ["nix", "develop", "--command", *cmd],
-                cwd=tmproot,
-                check=False,
-                capture_output=not interactive,
-            )
-            if not interactive and proc.returncode != 0:
-                sys.stdout.buffer.write(proc.stdout)
-                sys.stderr.buffer.write(proc.stderr)
-                proc.check_returncode()
-            return proc
-        # TODO: write package.version into flake.lock somehow
+    def sync(self) -> None:
+        self.resource_path.mkdir(exist_ok=True, parents=True)
+        flake = self.format_flake()
+        (self.resource_path / "flake.nix").write_text(flake)
+        print("Doing sync")
+        proc = subprocess.run(
+            ["nix", "build", ".#zilch-env"],
+            cwd=self.resource_path,
+            check=False,
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            print(flake)
+            sys.stdout.buffer.write(proc.stdout)
+            sys.stderr.buffer.write(proc.stderr)
+            proc.check_returncode()
 
-    # TODO: there should be a way to build this environment in a consistent locatoin
-    # That way Nix's gc won't gc it.
+    def shell(self, cmd: list[str], interactive: bool) -> subprocess.CompletedProcess[bytes]:
+        self.sync()
+        proc = subprocess.run(
+            ["nix", "shell", ".#zilch-env", "--command", "/usr/bin/env", "--chdir", os.getcwd(), *cmd],
+            cwd=self.resource_path,
+            check=False,
+            capture_output=not interactive,
+        )
+        if not interactive and proc.returncode != 0:
+            sys.stdout.buffer.write(proc.stdout)
+            sys.stderr.buffer.write(proc.stderr)
+            proc.check_returncode()
+        return proc
+
 
     def env_vars(self) -> typing.Mapping[str, str]:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmproot = pathlib.Path(tmpdir)
-            (tmproot / "flake.nix").write_text(self.format_flake())
-            # Following how direnv gets their shells set up
-            # https://github.com/direnv/direnv/blob/4da566cee14dbd8e75f3cd04622e5983c02a0c1c/stdlib.sh#L1274k
-            # 
-            profile = tmproot / "profile"
-            profile.mkdir()
-            proc = subprocess.run(
-                ["nix", "print-dev-env", "--profile", str(profile), "--json", "."],
-                check=True,
-                capture_output=True,
-            )
-            _output = json.loads(proc.stdout)
-            return {}
+        script = "import os, json; print(json.dumps(os.environ))"
+        inner_env = json.loads(self.shell([sys.executable, "-c", script], interactive=False).stdout)
+        outer_env = dict(os.environ)
+        return {
+            key: value
+            for key, value in inner_env.items()
+            if outer_env[key] != value
+        }
+        # Following how direnv gets their shells set up
+        # https://github.com/direnv/direnv/blob/4da566cee14dbd8e75f3cd04622e5983c02a0c1c/stdlib.sh#L1274k
+        # Unfortunately, that method gets many unrelated environment variables, like TMP and TEMP set to random things
+        # profile = tmproot / "profile"
+        # profile.mkdir()
+        # proc = subprocess.run(
+        #     ["nix", "print-dev-env", "--profile", str(profile), "--json", "."],
+        #     check=True,
+        #     capture_output=True,
+        # )
+        # _output = json.loads(proc.stdout)
+        # return {}
 
 
 @dataclasses.dataclass(frozen=True)

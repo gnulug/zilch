@@ -8,7 +8,7 @@
     flake-utils.lib.eachDefaultSystem (
       system: {
         devShells = {
-          default = nixpkgs.legacyPackages.${system}.mkShell {
+          zilch-shell = nixpkgs.legacyPackages.${system}.mkShell {
             buildInputs = [
               PACKAGES_HERE
             ];
@@ -16,6 +16,12 @@
         };
         packages = {
           NAME_EQUALS_PACKAGE_HERE
+          zilch-env = nixpkgs.legacyPackages.${system}.buildEnv {
+            name = "zilch-env";
+            paths = [
+              PACKAGES_HERE
+            ];
+          };
         };
       }
     )

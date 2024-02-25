@@ -34,15 +34,13 @@ https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
 - Have a ZILCH_PATH, which defaults to $XDG_CONFIG_HOME/zilch/
 - Have a --path which overrides ZILCH_PATH
 
-* TODO [#B] Direnv
+* TODO [#B] Direnv Zilch integration
 
-* TODO [#A] zilch activate <path>
+* TODO [#A] zilch activate (mutate current environment)
 
 * DONE [#A] zilch install
 
 * DONE [#A] zilch search prettiness
-
-* TODO [#B] Mutate current environment
 
 * TODO [#B] Figure out how to pin nixpkgs
 
@@ -63,3 +61,23 @@ Put versions in nix list
 - D to remove a package
 - U to upgrade a package
   - Defaults to version=${latest}
+
+* TODO [#B] Use Nix-output-manager
+
+* TODO [#B] Use verbose or debug flags
+
+* TODO [#B] Design Python APi to be independent of CLI
+- Someone should be able to use the Python API to manage a Nix flake without zilch.toml
+- Someone should be able to use the Python API to manage zilch.toml without using CLI
+
+* TODO [#C] When no package matches, we should offer suggestions based on Levenshtein distance
+
+* TODO [#C] Read zilch.toml from Flake
+
+* TODO [#C] Separate sources from packages in zilch.toml
+
+* TODO [#C] Zilch should have an option to use the flake in the current directory
+
+* TODO [#C] Find a way for Rich to output JSON instead of UI based on isattty/cmd flag
+
+* TODO [#C] Prompt user for arguments if they were not given
