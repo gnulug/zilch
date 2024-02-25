@@ -2,7 +2,7 @@
 name = "zilch"
 version = "0.1.0"
 description = "blank"
-authors = ["Evan, and thats it"]
+authors = ["Evan Widloski", "Samuel Grayson"]
 license = "MIT"
 readme = "README.md"
 
@@ -16,6 +16,9 @@ platformdirs = "^4.2.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
+
+[tool.poetry.scripts]
+zilch = 'zilch.cli:cli'
 
 [build-system]
 requires = ["poetry-core"]

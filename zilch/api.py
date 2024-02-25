@@ -1,13 +1,14 @@
 from __future__ import annotations
 import tomlkit
 import functools
+import sys
 import dataclasses
+import tempfile
 import json
 import pathlib
 import subprocess
 import typing
-import tempfile
-root = pathlib.Path(__file__).parent
+root = pathlib.Path(__file__).parent.parent
 
 def parse_attrpath(path) -> tuple[str, str, str]:
     """Parse attribute path from 'nix search'
@@ -86,10 +87,7 @@ class Project:
                 source_version,
             )
         else:
-            # with tempfile.TemporaryDirectory(delete=False) as _tmpdir:
-            _tmpdir = "/tmp/zilch"
-            pathlib.Path(_tmpdir).mkdir(exist_ok=True, parents=True)
-            if True:
+            with tempfile.TemporaryDirectory(delete=False) as _tmpdir:
                 tmpdir = pathlib.Path(_tmpdir)
                 (tmpdir / "flake.nix").write_text(
                     "{ inputs.test.url = \"SOURCE_URL_HERE\"; outputs = inputs: {}; }"
@@ -185,16 +183,21 @@ class Project:
             .replace("NAME_EQUALS_PACKAGE_HERE", ("\n" + 10 * " ").join(name_equals_package_lines))
         )
 
-    def shell(self, cmd: str, interactive: bool) -> subprocess.CompletedProcess[bytes]:
+    def shell(self, cmd: list[str], interactive: bool) -> subprocess.CompletedProcess[bytes]:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmproot = pathlib.Path(tmpdir)
             (tmproot / "flake.nix").write_text(self.format_flake())
-            return subprocess.run(
+            proc = subprocess.run(
                 ["nix", "develop", "--command", *cmd],
                 cwd=tmproot,
-                check=not interactive,
+                check=False,
                 capture_output=not interactive,
             )
+            if not interactive and proc.returncode != 0:
+                sys.stdout.buffer.write(proc.stdout)
+                sys.stderr.buffer.write(proc.stderr)
+                proc.check_returncode()
+            return proc
         # TODO: write package.version into flake.lock somehow
 
     # TODO: there should be a way to build this environment in a consistent locatoin
@@ -214,7 +217,7 @@ class Project:
                 check=True,
                 capture_output=True,
             )
-            output = json.loads(proc.stdout)
+            _output = json.loads(proc.stdout)
             return {}
 
 

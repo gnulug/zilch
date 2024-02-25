@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import pathlib
 import click
 import subprocess
@@ -10,7 +8,7 @@ from dataclasses import asdict
 from rich.table import Table
 from rich.padding import Padding
 
-from api import NixPackage, Project
+from .api import NixPackage, Project
 from console import console
 
 SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
@@ -119,6 +117,3 @@ def shell(ctx, cmd: list[str]):
         cmd = [os.environ.get("SHELL", "/bin/bash")]
     project = Project.from_path(ctx.obj["path"])
     project.shell(cmd, interactive=True)
-
-if __name__ == "__main__":
-    cli()

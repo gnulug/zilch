@@ -38,9 +38,9 @@ https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
 
 * TODO [#A] zilch activate <path>
 
-* TODO [#A] zilch install
+* DONE [#A] zilch install
 
-* TODO [#A] zilch search prettiness
+* DONE [#A] zilch search prettiness
 
 * TODO [#B] Mutate current environment
 
@@ -50,3 +50,16 @@ https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
 
 * TODO [#B] Make info not lie
 If a package is present in TOML but not installed, don't show it
+
+* TODO [#B] Make info not lie
+Put versions in nix list
+
+* TODO [#B] Aptitude-like TUI
+- Shows a list installed packages and sources
+- I to install package
+  - search by keywords
+  - Prompt for source, defaults to source=Nixpkgs
+  - Prompts for version, defaults to version=${latest}
+- D to remove a package
+- U to upgrade a package
+  - Defaults to version=${latest}
