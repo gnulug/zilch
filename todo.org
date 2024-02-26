@@ -31,7 +31,19 @@
 
 * TODO [#A] zilch activate (mutate current environment)
 
+* TODO [#A] zilch info
+- Put versions in nix list
+
+* TODO [#A] zilch list
+- Show installed packages
+
 * TODO [#A] Zilch should pin sources with flake.lock
+
+* TODO [#A] Get a good precommit workflow
+- ruff, mypy
+
+* TODO [#A] Get a good CI workflow
+- ruff, mypy, pytest, PyPI (if tagged)
 
 * TODO [#B] Help the user get their python packages right
 If they ask for python311Packages.foo and then python312Packages.bar, emit warning.
@@ -46,6 +58,11 @@ If they ask for python311Packages.foo and then python312Packages.bar, emit warni
 - [ ] Append to .bashrc/.bash_profile.
 - [ ] Print instructions to modify current shell
 - [ ] Should be usable from shebang?
+
+* TODO [#B] Menu-driven UI
+- Invoke zilch
+- Gets the possible operations
+- Fuzzy searching, validation, and good completion on each of the options
 
 * TODO [#B] zilch modify $package
 - Drop the user into a directory with the source code, the Nix recipe, the Nix flake/lock, and helper scripts.
@@ -67,10 +84,6 @@ If they ask for python311Packages.foo and then python312Packages.bar, emit warni
 Zilch should have a direnv layout.
 The user should just `direnv allow $DIR`, and their dir becomes zilched.
 
-* TODO [#B] Make zilch info better
-- If a package is present in TOML but not installed, don't show it
-- Put versions in nix list
-
 * TODO [#B] Use Nix-output-manager
 
 * TODO [#B] Use verbose or debug flags
@@ -86,6 +99,7 @@ The user should just `direnv allow $DIR`, and their dir becomes zilched.
 * TODO [#C] When no package matches, we should offer suggestions based on Levenshtein distance
 
 * TODO [#C] Zilch should have an option to use the flake in the current directory
+- Resource path (for cached attrs) should still be hidden
 
 * TODO [#C] Find a way for Rich to output JSON instead of UI based on isattty/cmd flag
 
@@ -139,3 +153,8 @@ https://nixos.wiki/wiki/Python
 - Explain why Zilch stores the result in a resource directory
 
 * TODO [#C] Define cross-compilation workflow
+
+* TODO [#C] Consider supporting multiple backends
+- Pure Nix (not flake)?
+- Home-manager module?
+- NixOS module?
