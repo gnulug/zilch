@@ -1,24 +1,133 @@
+* DONE [#A] zilch search
+
+* DONE [#A] zilch remove
+
+* DONE [#A] zilch install
+
+* DONE [#A] zilch search prettiness
+
+* TODO [#A] Write tests
+
+* TODO [#A] Read zilch.toml from Flake
+- Instead of baking in the user's packages into the flake, we should have the flake read the TOML.
+- This means the user can modify the flake more. As long as they keep the lines that read the TOML and the sources (which have to be baked in), they can change the rest.
+- This also means one source of truth.
+
+* TODO [#A] Separate the concept of sources from concept of packages in CLI, API, and storage (TOML) layers
+- NixPackages(attribute_path: str, source: NixSource)
+- NixSource(url: str, version: str)
+- CLI for manipulating sources
+  - zilch source list
+  - zilch source add <source_alias> <URL> [source_version]
+  - zilch source remove <source_alias>
+  - zilch source upgrade <source_alias>
+  - zilch swap <i> <j> (use zilch list to get an ordered list of sources)
+    - See the idea to have a TUI later on, which would be the more user friendly way of manipulating the list. But we should still have a scriptable non-TUI way of doing that.
+- CLI for manipulating packages
+  - zilch install <package_name> --source <source_alias> (no --source given means first source containing the package)
+  - zilch remove <package_name> --source <source_alias> (no --source given means all sources)
+  - zilch upgrade [package_names ...] --source <source_alias> (no --source means their current source)
+  - zilch search <terms> --source <source_alias> (no --source given means all sources)
+
+* TODO [#A] zilch activate (mutate current environment)
+
+* TODO [#A] Zilch should pin sources with flake.lock
+
+* TODO [#B] Help the user get their python packages right
+If they ask for python311Packages.foo and then python312Packages.bar, emit warning.
+
+* TODO [#B] Make an installer
+- [ ] Install Nix, if they don't have it already
+  - [ ] Ask if they want admin system-level, admin user-level, or user-level (and help them figure it out)
+- [ ] Enable flakes and experimental
+- [ ] Install direnv or asdf
+- [ ] Install Zilch
+- [ ] Install current Zilch project
+- [ ] Append to .bashrc/.bash_profile.
+- [ ] Print instructions to modify current shell
+- [ ] Should be usable from shebang?
+
+* TODO [#B] zilch modify $package
+- Drop the user into a directory with the source code, the Nix recipe, the Nix flake/lock, and helper scripts.
+  - `\cdot/package`
+    - Compute current diff > user-modifications.patch
+    - Put `patches = [ ... ./user-modifications.patch ]` in Nix recipe
+  - `./upload`
+    - Prompt the user for what kind of public storage service (GitHub, ...) they want to use.
+    - Upload patches, Nix recipe, Nix flake/lock, other files to that storage service or ask the user to.
+    - Test `nix build remote#package`
+
+* TODO [#B] Use nix registry pin to prevent constantly downloading all of nixpkgs
+
+* DONE [#B] Zilch should work as project-local or user-local scope
+- Have a ZILCH_PATH, which defaults to $XDG_CONFIG_HOME/zilch/
+- Have a --path which overrides ZILCH_PATH
+
+* TODO [#B] Direnv Zilch integration
+Zilch should have a direnv layout.
+The user should just `direnv allow $DIR`, and their dir becomes zilched.
+
+* TODO [#B] Make zilch info better
+- If a package is present in TOML but not installed, don't show it
+- Put versions in nix list
+
+* TODO [#B] Use Nix-output-manager
+
+* TODO [#B] Use verbose or debug flags
+
+* TODO [#C] Consider strategies to combat the 1000 instances of nixpkgs problem
+- https://discourse.nixos.org/t/1000-instances-of-nixpkgs/17347
+- `inputs.source.nixpkgs.follows = "nixpkgs";`, basically
+
+* TODO [#C] Cache slow operations
+- zilch activate
+- zilch search
+
+* TODO [#C] When no package matches, we should offer suggestions based on Levenshtein distance
+
+* TODO [#C] Zilch should have an option to use the flake in the current directory
+
+* TODO [#C] Find a way for Rich to output JSON instead of UI based on isattty/cmd flag
+
+* TODO [#C] Prompt user for arguments if they were not given
+
 * TODO [#C] Consolidate Python environments
 https://nixos.wiki/wiki/Python
 
-* TODO [#C] Enable optimizations in Python
-https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
+* TODO [#C] Allow the user to set package override options (per package or globally)
+- Disable checks?
+- https://nixos.org/manual/nixpkgs/stable/#reference search "How to enable interpreter optimizations?"
+- https://nixos.wiki/wiki/Build_flags
 
-* TODO [#C] Parallelism?
+* TODO [#B] Combine package families into environments
+- TeXLive
+- Python
+- Ruby
+- Perl
+- JavaScript
 
-* TODO [#C] Allow unfree? allow broken?
+* TODO [#C] Allow the user to set Nix options (per package or globally)
+- Allow unfree
+- Allow broken
 
-* TODO [#C] Disable checks?
+* TODO [#C] Nix invocation options (per invocation or globally)
+- Parallelism
+- Print build logs
+- Enable/disable Nix output manager
 
-* TODO [#C] Consolidate same sources?
+* TODO [#C] Aptitude-like TUI
+- Sources
+  - Reordable list of sources with insert and remove
+- Packages
+  - I to install package
+    - search by keywords
+    - Prompt for source, defaults to source=Nixpkgs
+    - Prompts for version, defaults to version=${latest}
+  - D to remove a package
+  - U to upgrade a package
+    - Defaults to version=${latest}
 
-* TODO [#B] Make an installer
-- Install Nix
-- Enable flakes and experimental
-- Install direnv or asdf
-- Install Zilch
-
-* TODO [#B] Compare to alternatives
+* TODO [#C] Writeup, comparing to alternatives
 - <https://stop-using-nix-env.privatevoid.net/>
 - <https://github.com/lf-/flakey-profile>
 - <https://discourse.nixos.org/t/transitioning-from-imperative-to-declarative-package-management-with-nix-alone/28728>
@@ -26,58 +135,7 @@ https://discourse.nixos.org/t/why-is-the-nix-compiled-python-slower/18717/9
 - Home Manager
 - NixOS
 - Devshell.toml
+- Explain "Declarative package management"
+- Explain why Zilch stores the result in a resource directory
 
-* TODO [#B] Nix modify $package
-
-* TODO [#B] Zilch should work as project-local or user-local scope
-- Looks for a zilch toml in ., .., ../..
-- Have a ZILCH_PATH, which defaults to $XDG_CONFIG_HOME/zilch/
-- Have a --path which overrides ZILCH_PATH
-
-* TODO [#B] Direnv Zilch integration
-
-* TODO [#A] zilch activate (mutate current environment)
-
-* DONE [#A] zilch install
-
-* DONE [#A] zilch search prettiness
-
-* TODO [#B] Figure out how to pin nixpkgs
-
-* TODO [#C] Work for cross-compilation
-
-* TODO [#B] Make info not lie
-If a package is present in TOML but not installed, don't show it
-
-* TODO [#B] Make info not lie
-Put versions in nix list
-
-* TODO [#B] Aptitude-like TUI
-- Shows a list installed packages and sources
-- I to install package
-  - search by keywords
-  - Prompt for source, defaults to source=Nixpkgs
-  - Prompts for version, defaults to version=${latest}
-- D to remove a package
-- U to upgrade a package
-  - Defaults to version=${latest}
-
-* TODO [#B] Use Nix-output-manager
-
-* TODO [#B] Use verbose or debug flags
-
-* TODO [#B] Design Python APi to be independent of CLI
-- Someone should be able to use the Python API to manage a Nix flake without zilch.toml
-- Someone should be able to use the Python API to manage zilch.toml without using CLI
-
-* TODO [#C] When no package matches, we should offer suggestions based on Levenshtein distance
-
-* TODO [#C] Read zilch.toml from Flake
-
-* TODO [#C] Separate sources from packages in zilch.toml
-
-* TODO [#C] Zilch should have an option to use the flake in the current directory
-
-* TODO [#C] Find a way for Rich to output JSON instead of UI based on isattty/cmd flag
-
-* TODO [#C] Prompt user for arguments if they were not given
+* TODO [#C] Define cross-compilation workflow
