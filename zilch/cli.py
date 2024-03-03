@@ -4,15 +4,16 @@ import subprocess
 import json
 import os
 import platformdirs
+import os
 import typing
 from dataclasses import asdict
 from rich.table import Table
 from rich.padding import Padding
 
-from .api import NixPackage, Project
+from .api import NixPackage, NixSource, ZilchProject
 from console import console
 
-SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
+SOURCE = "nixpkgs"
 
 @click.group(no_args_is_help=True)
 @click.option('--verbose', default=True, is_flag=True)
@@ -27,8 +28,9 @@ SOURCE = "github:NixOS/nixpkgs/nixpkgs-unstable"
 def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> None:
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
-    ctx.obj["source"] = source
     ctx.obj["path"] = path
+    ctx.obj["project"] = ZilchProject.from_path(path)
+    ctx.obj["source"] = ctx.obj["project"].sources[source]
     if ctx.obj["verbose"]:
         print("Using zilch.toml from", ctx.obj["path"])
 
@@ -37,7 +39,7 @@ def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> 
 @click.pass_context
 def search(ctx: click.Context, terms: list[str]) -> None:
     o = subprocess.run(
-        ['nix', 'search', ctx.obj["source"], *terms, '--json'],
+        ['nix', 'search', ctx.obj["source"].url, *terms, '--json'],
         capture_output=True,
         check=True
     )
@@ -62,8 +64,7 @@ def search(ctx: click.Context, terms: list[str]) -> None:
 )
 @click.pass_context
 def info(ctx: click.Context, term: str, any_source: bool) -> None:
-    project = Project.from_path(ctx.obj["path"])
-    for p in project.packages:
+    for p in ctx.obj["project"].packages:
         if p.name == term and (p.source is None or any_source or p.source == ctx.obj["source"]):
             t = Table(show_lines=False, show_header=False, box=None, pad_edge=False)
             t.add_column()
@@ -82,18 +83,17 @@ def info(ctx: click.Context, term: str, any_source: bool) -> None:
 @click.argument('packages', nargs=-1)
 @click.pass_context
 def install(ctx: click.Context, packages: list[str]) -> None:
-    project = Project.from_path(ctx.obj["path"])
-    new_packages = [
-        project.get_latest_compatible(package, ctx.obj["source"])
-        for package in packages
-    ]
-    project.install(new_packages)
+    for package in packages:
+        ctx.obj["project"].add_package(
+            NixPackage.from_name(package, ctx.obj["source"])
+        )
+    ctx.obj["project"].sync()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.pass_context
 def autoremove(ctx: click.Context) -> None:
-    project = Project.from_path(ctx.obj["path"])
-    project.autoremove()
+    ctx.obj["project"].sync()
+    ctx.obj["project"].autoremove()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.option(
@@ -107,15 +107,12 @@ def autoremove(ctx: click.Context) -> None:
 @click.argument('packages', nargs=-1)
 @click.pass_context
 def remove(ctx: click.Context, any_source: bool, packages: list[str]) -> None:
-    project = Project.from_path(ctx.obj["path"])
-    new_packages = typing.cast(list[NixPackage], list(filter(
-        bool,
-        (
-            project.get_existing_package(package, ctx.obj["source"], any_source=any_source)
-            for package in packages
-        ),
-    )))
-    project.remove(new_packages)
+    for package in packages:
+        ctx.obj["project"].remove_package(
+            NixPackage.from_name(package, ctx.obj["source"]),
+            any_source=any_source,
+        )
+    ctx.obj["project"].sync()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('cmd', nargs=-1)
@@ -123,6 +120,6 @@ def remove(ctx: click.Context, any_source: bool, packages: list[str]) -> None:
 def shell(ctx: click.Context, cmd: list[str]) -> None:
     if not cmd:
         cmd = [os.environ.get("SHELL", "/bin/bash")]
-    project = Project.from_path(ctx.obj["path"])
-    proc = project.shell(cmd, interactive=True)
-    ctx.exit(proc.returncode)
+    ctx.obj["project"].sync()
+    env_vars = ctx.obj["project"].get_env_vars()
+    os.execvpe(cmd[0], cmd, {**os.environ, **env_vars})

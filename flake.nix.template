@@ -1,29 +1,18 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     INPUTS_HERE
   };
-  outputs = { self, flake-utils, nixpkgs, ... }@inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system: {
-        devShells = {
-          zilch-shell = nixpkgs.legacyPackages.${system}.mkShell {
-            buildInputs = [
-              PACKAGES_HERE
-            ];
-          };
+  outputs = {self, flake-utils, ...}@inputs:
+    flake-utils.lib.eachDefaultSystem (system: {
+      packages = {
+        NAME_EQUALS_PACKAGE_HERE
+        zilch-env = inputs.nixpkgs.legacyPackages.${system}.buildEnv {
+          name = "zilch-env";
+          paths = [
+            PACKAGES_HERE
+          ];
         };
-        packages = {
-          NAME_EQUALS_PACKAGE_HERE
-          zilch-env = nixpkgs.legacyPackages.${system}.buildEnv {
-            name = "zilch-env";
-            paths = [
-              PACKAGES_HERE
-            ];
-          };
-        };
-      }
-    )
-  ;
+      };
+    });
 }

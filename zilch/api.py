@@ -13,6 +13,7 @@ import subprocess
 import typing
 root = pathlib.Path(__file__).parent.parent
 
+
 def parse_attrpath(path) -> tuple[str, str, str]:
     """Parse attribute path from 'nix search'
 
@@ -29,139 +30,264 @@ def parse_attrpath(path) -> tuple[str, str, str]:
 def get_system() -> str:
     """Get the Nix current system/platform"""
     system = subprocess.run(
-        ["nix", "eval", "--impure", "--raw", "--expr", "builtins.currentSystem"],
+        ["nix", "eval", "--impure", "--raw", "--expr",
+         "builtins.currentSystem"],
         check=True,
         capture_output=True,
         text=True
     ).stdout.strip()
     return system
 
+class ZilchError(Exception):
+    pass
+
+
+class ZilchTomlError(ZilchError):
+    pass
+
 
 @dataclasses.dataclass(frozen=True)
-class Project:
-    """The data in the project-local store"""
+class ZilchProject:
+    """In-memory representation of the data in the project-local store.
+
+    Note that this class wraps two (2) copies of the data: one in native Python objects; the other in tomlkit.
+    *Both* have to be modified simultaneously.
+    - The Python representation is necessary for actually operating on the objects.
+    - The TOML representation is necessary to support round-tripping (especially TOML comments).
+    Another possible design would be to only hold the TOML copy in memory, and write the Python objects as @propery's.
+    Whether we switch to that design or not, callers of this class will not care."""
     toml_doc: tomlkit.toml_document.TOMLDocument
     toml_path: pathlib.Path
+    version: tuple[int, ...]
     resource_path: pathlib.Path
+    sources: dict[str, NixSource]
     packages: list[NixPackage]
 
     @staticmethod
-    def from_path(toml_path: pathlib.Path) -> Project:
+    def from_path(toml_path: pathlib.Path) -> ZilchProject:
         """Initializes a Zilch project from a path/to/dir containing zilch.toml or path/to/zilch.toml"""
+
+        # Normalize path
         if toml_path.is_dir():
             toml_path = toml_path / "zilch.toml"
         toml_path.parent.mkdir(exist_ok=True, parents=True)
         if not toml_path.exists():
             toml_path.write_text("")
-        toml_doc = tomlkit.parse(toml_path.read_text())
-        resource_path = pathlib.Path(platformdirs.user_data_dir()) / "zilch" / urllib.parse.quote(str(toml_path.parent), safe="")
-        if "packages" not in toml_doc:
-            toml_doc.append("packages", tomlkit.aot())
-        packages = [
-            NixPackage(
-                f"legacyPackages.{get_system()}.{package['name']}",
-                package["source"],
-                package["source_version"],
-            )
-            for package in toml_doc["packages"]
-        ]
-        toml_doc.setdefault("version", 1)
-        proj = Project(toml_doc, toml_path, resource_path, packages)
-        return proj
 
-    def write_toml(self) -> None:
+        # Parse TOML
+        toml_doc = tomlkit.parse(toml_path.read_text())
+
+        # Parse version
+        version = tuple(map(
+            int,
+            toml_doc.setdefault("version", "1.0").split(".")
+        ))
+
+        # Parse resource path
+        default_resource_path = pathlib.Path("/").joinpath(
+            platformdirs.user_data_dir(),
+            "zilch",
+            urllib.parse.quote(str(toml_path.parent), safe=""),
+        )
+        resource_path = pathlib.Path(toml_doc.get("resource_path", str(default_resource_path)))
+        resource_path.mkdir(exist_ok=True, parents=True)
+
+        # Parse and validate sources
+        no_sources = "sources" not in toml_doc
+        sources_list = [
+            NixSource(source["url"], source["alias"], source["rev"])
+            for source in toml_doc.setdefault("sources", tomlkit.aot())
+        ]
+        if len(sources_list) != len(set(map(lambda source: source.alias, sources_list))):
+            raise ZilchTomlError(
+                "Some sources in the TOML have the same name"
+            )
+        sources = {
+            source.alias: source
+            for source in sources_list
+        }
+
+        packages: list[NixPackage] = []
+        for package in toml_doc.setdefault("packages", tomlkit.aot()):
+            if package["source"] not in sources:
+                raise ZilchTomlError(
+                    f"Package source of {package} is not in sources section"
+                )
+            packages.append(NixPackage(
+                f"legacyPackages.{get_system()}.{package['name']}",
+                sources[package["source"]],
+            ))
+
+        # Deduplicate packages
+        for i in range(len(packages)):
+            if i >= len(packages):
+                break
+            for j in range(i + 1, len(packages)):
+                if packages[i] == packages[j]:
+                    del packages[j]
+                    del toml_doc["packages"][j]
+                    print("Removing duplicate", packages[j])
+
+        project = ZilchProject(
+            toml_doc,
+            toml_path,
+            version,
+            resource_path,
+            sources,
+            packages,
+        )
+        if no_sources:
+            project.add_source(DEFAULT_SOURCE)
+        project._validate()
+        return project
+
+    # TODO: Use Deal to check this invariant before/after each method.
+    # https://deal.readthedocs.io/index.html
+    def _validate(self) -> None:
+        # Validate packages
+        assert len(self.packages) == len(self.toml_doc["packages"])
+        for package, package_dict in zip(self.packages, self.toml_doc["packages"]):
+            assert package.name == package_dict["name"]
+            assert package.source.alias == package_dict["source"]
+
+        # Validate sources
+        assert len(self.sources) == len(self.toml_doc["sources"])
+        for (alias, source), source_dict in zip(self.sources.items(), self.toml_doc["sources"]):
+            assert source.url == source_dict["url"]
+            assert source.alias == source_dict["alias"] == alias
+            assert source.rev == source_dict["rev"]
+            assert source.rev is not None
+
+    def _write_toml(self) -> None:
+        self._validate()
         self.toml_path.write_text(tomlkit.dumps(self.toml_doc))
 
-    def get_latest_compatible(self, name: str, source: str) -> NixPackage:
-        source_version = next(
-            (
-                package.source_version
-                for package in self.packages
-                if package.source == source
-            ),
-            None,
+    def _write_flake(self) -> None:
+        input_lines_with_rev = list(set(
+            f"{source.alias}.url = \"{source.url}{'?rev=' + source.rev if source.rev is not None else ''}\";"
+            for source in self.sources.values()
+        ))
+        input_lines = list(set(
+            f"{source.alias}.url = \"{source.url}\";"
+            for source in self.sources.values()
+        ))
+        package_lines = [
+            f"inputs.{package.source.alias}.legacyPackages.${{system}}.{package.name}"
+            for package in self.packages
+        ]
+        name_equals_package_lines = [
+            f"{package.source.alias}-{package.name} = inputs.{package.source.alias}.legacyPackages.${{system}}.{package.name};"
+            for package in self.packages
+        ]
+        # Note: In order to get the flake at the locked rev,
+        # We will write the `flake.nix` with rev hardcoded, call `nix flake lock`, and then write the `flake.nix` with no rev hardcoded.
+        # This ensures the `flake.lock` has the right rev, but also the rev should not appear in `flake.nix`, so that `nix flake update` will work
+        # We could also achieve this by manually writing the final `flake.nix` and writing rev/narHash into the `flake.lock`.
+        # However, I don't know how to compute the narHash, so I will do this instead.
+        # I also think that flake.lock is technically not part of the "public interface" of flakes, so it might change its format.
+        # I don't think Nix developers intend users to set that directly.
+        (self.resource_path / "flake.nix").write_text(
+            (root / "flake.nix.template")
+            .read_text()
+            .replace("INPUTS_HERE", ("\n" + 4 * " ").join(input_lines_with_rev)) # NOT input_lines
+            .replace("PACKAGES_HERE", ("\n" + 14 * " ").join(package_lines))
+            .replace("NAME_EQUALS_PACKAGE_HERE", ("\n" + 10 * " ").join(name_equals_package_lines))
         )
-        if source_version:
-            return NixPackage(
-                f"legacyPackages.{get_system()}.{name}",
-                source,
-                source_version,
+        NixFlake.lock(self.resource_path)
+        (self.resource_path / "flake.nix").write_text(
+            (root / "flake.nix.template")
+            .read_text()
+            .replace("INPUTS_HERE", ("\n" + 4 * " ").join(input_lines)) # NOT input_lines_with_rev
+            .replace("PACKAGES_HERE", ("\n" + 14 * " ").join(package_lines))
+            .replace("NAME_EQUALS_PACKAGE_HERE", ("\n" + 10 * " ").join(name_equals_package_lines))
+        )
+
+    def add_source(self, source: NixSource) -> None:
+        if source.alias in self.sources:
+            raise ZilchError(
+                f"Cannot add {source}: "
+                "A source with that alias already exists"
+            )
+        if source.rev is None:
+            self.sources[source.alias] = source
+            self._write_flake()
+            rev = NixFlake.get_rev(self.resource_path, source.alias)
+            source.rev = rev
+            self.toml_doc["sources"].append({
+                "url": source.url,
+                "alias": source.alias,
+                "rev": source.rev,
+            })
+        else:
+            self.sources[source.alias] = source
+            self.toml_doc["sources"].append({
+                "url": source.url,
+                "alias": source.alias,
+                "rev": source.rev,
+            })
+
+    def remove_source(self, source_alias) -> None:
+        if source_alias not in self.sources:
+            raise ZilchError(
+                f"Cannot remove {source_alias}: "
+                "No source with that alias exists"
+            )
+        del self.sources[source_alias]
+        for i in range(len(self.toml_doc["sources"])):
+            if self.toml_doc["sources"][i]["alias"] == source_alias:
+                del self.toml_doc["sources"][i]
+                break
+
+    def add_package(self, package: NixPackage) -> None:
+        if package.source.alias in self.sources:
+            if package.source != self.sources[package.source.alias]:
+                raise ZilchError(
+                    f"Cannot add {package} from {package.source}: "
+                    f"The alias {package.source.alias} already exists"
+                )
+        else:
+            self.add_source(package.source)
+        for existing_package in self.packages:
+            if existing_package == package:
+                raise ZilchError(
+                    f"Cannot add {package}: Already installed"
+                )
+        self.packages.append(package)
+        self.toml_doc["packages"].append({
+            "name": package.name,
+            "source": package.source.alias,
+        })
+
+    def _get_package(self, package: NixPackage, any_source: bool) -> tuple[NixPackage, int]:
+        for i, existing_package in enumerate(self.packages):
+            if (existing_package.name == package.name
+                and (any_source or package.source.alias == existing_package.source.alias)):
+                return (package, i)
+        raise KeyError()
+
+    def remove_package(self, package: NixPackage, any_source: bool) -> None:
+        try:
+            _, i = self._get_package(package, any_source)
+        except KeyError:
+            raise ZilchError(
+                f"Cannot remove {package}{' (any source)' if any_source else ''}: "
+                f"{package} not added"
             )
         else:
-            with tempfile.TemporaryDirectory() as _tmpdir:
-                tmpdir = pathlib.Path(_tmpdir)
-                (tmpdir / "flake.nix").write_text(
-                    "{ inputs.test.url = \"SOURCE_URL_HERE\"; outputs = inputs: {}; }"
-                    .replace("SOURCE_URL_HERE", source)
-                )
-                subprocess.run(
-                    ["nix", "flake", "lock"],
-                    capture_output=True,
-                    check=True,
-                    cwd=tmpdir,
-                )
-                source_version = json.loads((tmpdir / "flake.lock").read_text())["nodes"]["test"]["locked"]["rev"]
-            return NixPackage(
-                f"legacyPackages.{get_system()}.{name}",
-                source,
-                source_version,
-            )
+            del self.packages[i]
+            del self.toml_doc["packages"][i]
 
-    def install(self, packages: list[NixPackage]) -> None:
-        for package in packages:
-            if package not in self.packages:
-                self.packages.append(package)
-                self.toml_doc["packages"].append({
-                    "name": package.name,
-                    "source": package.source,
-                    "source_version": package.source_version,
-                })
-        self.write_toml()
-        self.sync()
-
-    def get_existing_package(self, name: str, source: str, any_source: bool) -> NixPackage | None:
-        """Returns the NixPackage for an asssociated attribute, if exists"""
-        for package in self.packages:
-            if package.name == name and (any_source or package.source == source):
-                return package
+    def status(self, package: NixPackage, any_source: bool) -> str:
+        try:
+            package, i = self._get_package(package, any_source)
+        except KeyError:
+            return "Not added"
         else:
-            print(f"Could not find package {attribute} {source} {any_source}")
-            return None
-
-    def get_nix_path(self, package: NixPackage) -> pathlib.Path:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmproot = pathlib.Path(tmpdir)
-            (tmproot / "flake.nix").write_text(self.format_flake())
-            source_pairs2name = self.get_source_pairs2name()
-            return pathlib.Path(subprocess.run(
-                ["nix", "eval", "--raw", f".#{package.name}-{source_pairs2name[package.source_pair]}"],
-                cwd=tmproot,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.strip())
-
-    def is_installed(self, package: NixPackage) -> bool:
-        if package in self.packages:
-            return self.get_nix_path(package).exists()
-        else:
-            return False
-
-    def remove(self, packages: list[NixPackage]) -> None:
-        any_changes = False
-        for package in packages:
-            try:
-                idx = self.packages.index(package)
-            except ValueError:
-                print(f"{package} not installed")
+            attr = f"{package.source.alias}-{package.name}"
+            if NixFlake.get_store_path(self.resource_path, attr).exists():
+                return f"Added from {package.source} & installed"
             else:
-                print(f"Removing {package}")
-                del self.packages[idx]
-                del self.toml_doc["packages"][idx]
-                any_changes = True
-        if any_changes:
-            self.write_toml()
-            self.sync()
+                return f"Added from {package.source} but not installed"
 
     def autoremove(self) -> None:
         subprocess.run(
@@ -171,111 +297,30 @@ class Project:
             # This output can get propagated to the user
         )
 
-    def get_source_pairs2name(self) -> typing.Mapping[tuple[str, str], str]:
-        source_pairs = {
-            package.source_pair
-            for package in self.packages
-        }
-        # TODO: use better names than source-0, source-1
-        return {
-            source: f"source-{i}"
-            for i, source in enumerate(sorted(source_pairs))
-        }
-
-    def format_flake(self) -> str:
-        source_pairs2name = self.get_source_pairs2name()
-        input_lines = list(set(
-            f"{source_pairs2name[package.source_pair]}.url = \"{package.source}\";"
-            for package in self.packages
-        ))
-        package_lines = [
-            f"inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.name}"
-            for package in self.packages
-        ]
-        name_equals_package_lines = [
-            f"{package.name}-{source_pairs2name[package.source_pair]} = inputs.{source_pairs2name[package.source_pair]}.legacyPackages.${{system}}.{package.name};"
-            for package in self.packages
-        ]
-        return (
-            (root / "flake.nix.template")
-            .read_text()
-            .replace("INPUTS_HERE", ("\n" + 4 * " ").join(input_lines))
-            .replace("PACKAGES_HERE", ("\n" + 14 * " ").join(package_lines))
-            .replace("NAME_EQUALS_PACKAGE_HERE", ("\n" + 10 * " ").join(name_equals_package_lines))
-        )
-
     def sync(self) -> None:
-        self.resource_path.mkdir(exist_ok=True, parents=True)
-        flake = self.format_flake()
-        (self.resource_path / "flake.nix").write_text(flake)
-        print("Doing sync")
-        proc = subprocess.run(
-            ["nix", "build", ".#zilch-env"],
-            cwd=self.resource_path,
-            check=False,
-            capture_output=True,
-        )
-        if proc.returncode != 0:
-            print(flake)
-            sys.stdout.buffer.write(proc.stdout)
-            sys.stderr.buffer.write(proc.stderr)
-            proc.check_returncode()
+        self._write_toml()
+        self._write_flake()
+        NixFlake.build(self.resource_path, ".#zilch-env")
 
-    def shell(self, cmd: list[str], interactive: bool) -> subprocess.CompletedProcess[bytes]:
-        self.sync()
-        proc = subprocess.run(
-            ["nix", "shell", ".#zilch-env", "--command", "/usr/bin/env", "--chdir", os.getcwd(), *cmd],
-            cwd=self.resource_path,
-            check=False,
-            capture_output=not interactive,
-        )
-        if not interactive and proc.returncode != 0:
-            sys.stdout.buffer.write(proc.stdout)
-            sys.stderr.buffer.write(proc.stderr)
-            proc.check_returncode()
-        return proc
+    def get_env_vars(self) -> None:
+        return NixFlake.env_vars(self.resource_path, ".#zilch-env")
 
 
-    def env_vars(self) -> typing.Mapping[str, str]:
-        script = "import os, json; print(json.dumps(os.environ))"
-        inner_env = json.loads(self.shell([sys.executable, "-c", script], interactive=False).stdout)
-        outer_env = dict(os.environ)
-        return {
-            key: value
-            for key, value in inner_env.items()
-            if outer_env[key] != value
-        }
-        # Following how direnv gets their shells set up
-        # https://github.com/direnv/direnv/blob/4da566cee14dbd8e75f3cd04622e5983c02a0c1c/stdlib.sh#L1274k
-        # Unfortunately, that method gets many unrelated environment variables, like TMP and TEMP set to random things
-        # profile = tmproot / "profile"
-        # profile.mkdir()
-        # proc = subprocess.run(
-        #     ["nix", "print-dev-env", "--profile", str(profile), "--json", "."],
-        #     check=True,
-        #     capture_output=True,
-        # )
-        # _output = json.loads(proc.stdout)
-        # return {}
-
-
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class NixPackage:
-    """A uniquely identified package in a source with a specific commit.
-
-    Note that in Nix lingo, the "source" is really a flake, however we want to hide nix-specific terminology.
-
-    """
+    """A uniquely identified package."""
     attribute: str
-    source: str
-    source_version: str | None = None
+    source: NixSource
     version: str | None = None
     description: str | None = None
 
-    @property
-    def source_pair(self) -> tuple[str, str]:
-        assert self.source_version, "NixPackage.source_pair called for a package that we don't have source_version"
-        return (self.source, self.source_version)
+    @staticmethod
+    def from_name(name: str, source: NixSource) -> NixPackage:
+        return NixPackage(
+            f"legacyPackages.{get_system()}.{name}",
+            source,
+            None,
+        )
 
     @property
     def family(self) -> str:
@@ -291,3 +336,74 @@ class NixPackage:
     def name(self) -> str:
         """Package name"""
         return self.attribute.split('.', 2)[2]
+
+
+@dataclasses.dataclass
+class NixSource:
+    """Nix package source, at a specific revision."""
+    url: str
+    alias: str
+    rev: str | None
+
+
+class NixFlake:
+    """A wrapper around a Nix Flake"""
+
+    @staticmethod
+    def env_vars(path: pathlib.Path, pkg: str) -> typing.Mapping[str, str]:
+        """Returns the environment variables that turn a shell into a Nix shell"""
+        # Direnv uses `nix print-dev-env --profile <profile_path> --json <flake path>`
+        # to set their shells set up
+        # https://github.com/direnv/direnv/blob/4da566cee14dbd8e75f3cd04622e5983c02a0c1c/stdlib.sh#L1274k
+        # Unfortunately, that method gets many unrelated environment variables, like TMP and TEMP set to random things
+        # We will simply call env in a subshell
+        script = "import os, json; print(json.dumps(dict(os.environ)))"
+        inner_env = json.loads(subprocess.run(
+            ["nix", "shell", pkg, "--command", sys.executable, "-c", script],
+            cwd=str(path),
+            check=True,
+            text=True,
+            capture_output=True,
+        ).stdout)
+        outer_env = dict(os.environ)
+        return {
+            key: value
+            for key, value in inner_env.items()
+            if outer_env[key] != value
+        }
+
+    @staticmethod
+    def lock(path: pathlib.Path) -> None:
+        subprocess.run(
+            ["nix", "flake", "lock"],
+            cwd=str(path),
+            check=True,
+            capture_output=True,
+        )
+
+    @staticmethod
+    def get_rev(path: pathlib.Path, source_alias: str) -> str:
+        NixFlake.lock(path)
+        return json.loads((path / "flake.lock").read_text())["nodes"][source_alias]["locked"]["rev"]
+
+    @staticmethod
+    def get_store_path(path: pathlib.Path, pkg: str) -> pathlib.Path:
+        return pathlib.Path(subprocess.run(
+            ["nix", "eval", "--raw", "pkg"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip())
+
+    @staticmethod
+    def build(path: pathlib.Path, pkg: str) -> None:
+        subprocess.run(
+            ["nix", "build", pkg],
+            cwd=str(path),
+            capture_output=True,
+            check=True,
+        )
+
+
+DEFAULT_SOURCE = NixSource("github:NixOS/nixpkgs", "nixpkgs", None)
