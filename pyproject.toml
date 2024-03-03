@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "zilch"
+version = "0.1.0"
+description = "blank"
+authors = ["Evan Widloski", "Samuel Grayson"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "^8.1.7"
+tomlkit = "^0.12.3"
+rich = "^13.7.0"
+platformdirs = "^4.2.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.8.0"
+
+[tool.poetry.scripts]
+zilch = 'zilch.cli:cli'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

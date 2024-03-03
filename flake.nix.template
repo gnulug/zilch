@@ -1,0 +1,18 @@
+{
+  inputs = {
+    flake-utils.url = "github:numtide/flake-utils";
+    INPUTS_HERE
+  };
+  outputs = {self, flake-utils, ...}@inputs:
+    flake-utils.lib.eachDefaultSystem (system: {
+      packages = {
+        NAME_EQUALS_PACKAGE_HERE
+        zilch-env = inputs.nixpkgs.legacyPackages.${system}.buildEnv {
+          name = "zilch-env";
+          paths = [
+            PACKAGES_HERE
+          ];
+        };
+      };
+    });
+}

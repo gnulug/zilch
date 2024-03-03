@@ -1,4 +1,4 @@
-# Nix-helper
+# Zilch
 
 Nix could be a useful package manager for power users, developers, and administrators, but it is notoriously difficult to learn.
 This work provides a CLI wrapper, simplifying the initial part of the learning curve.
