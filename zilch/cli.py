@@ -5,15 +5,15 @@ import json
 import os
 import platformdirs
 import os
-import typing
 from dataclasses import asdict
+from typing import Mapping, Any
 from rich.table import Table
 from rich.padding import Padding
 
 from .api import NixPackage, NixSource, ZilchProject
 from console import console
 
-SOURCE = "nixpkgs"
+SOURCE = None
 
 @click.group(no_args_is_help=True)
 @click.option('--verbose', default=True, is_flag=True)
@@ -30,25 +30,28 @@ def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> 
     ctx.obj["verbose"] = verbose
     ctx.obj["path"] = path
     ctx.obj["project"] = ZilchProject.from_path(path)
-    ctx.obj["source"] = ctx.obj["project"].sources[source]
+    ctx.obj["source"] = ctx.obj["project"].sources[source] if source is not None else None
     if ctx.obj["verbose"]:
         print("Using zilch.toml from", ctx.obj["path"])
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.argument('terms', nargs=-1)
-@click.pass_context
-def search(ctx: click.Context, terms: list[str]) -> None:
-    o = subprocess.run(
-        ['nix', 'search', ctx.obj["source"].url, *terms, '--json'],
-        capture_output=True,
-        check=True
-    )
-    for k, v in json.loads(o.stdout).items():
-        p = NixPackage(k, ctx.obj["source"], None, v['version'], v['description'])
-        console.print(f"[green]{p.name}[/green] ({p.version})")
-        if p.description != '':
-            console.print(f"  {p.description}")
-        console.print('')
+@click.pass_obj
+def search(ctx: Mapping[str, Any], terms: list[str]) -> None:
+    sources = ctx["project"].sources if ctx["source"] is None else [ctx["source"]]
+    for name, source in sources.items():
+        console.rule(f"[yellow]{name}")
+        o = subprocess.run(
+            ['nix', 'search', source.url, *terms, '--json'],
+            capture_output=True,
+            check=True
+        )
+        for k, v in json.loads(o.stdout).items():
+            p = NixPackage(k, source, v['version'], v['description'])
+            console.print(f"[green]{p.name}[/green] ({p.version})")
+            if p.description != '':
+                console.print(Padding.indent(f"{p.description}", 2))
+            console.print('')
 
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
