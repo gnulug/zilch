@@ -3,6 +3,7 @@ import click
 import subprocess
 import json
 import os
+import sys
 import platformdirs
 import os
 from typing import Mapping, Any
@@ -24,12 +25,13 @@ class Context:
     source: NixSource = None
 
 @click.group(no_args_is_help=True)
+@click.help_option("--help", "-h")
 @click.option('--verbose', default=True, is_flag=True)
-@click.option('--source', default=SOURCE)
+@click.option('--source', default="nixpkgs")
 @click.option(
     "--path",
     type=pathlib.Path,
-    default=pathlib.Path(os.getenv("ZILCH_PATH", platformdirs.user_config_dir() + "/zilch")),
+    default=None,
     help="path/to/dir containing zilch.toml or path/to/zilch.toml. Defaults to $ZILCH_PATH or $XDG_CONFIG_HOME (or platform equivalent)",
 )
 @click.pass_context
@@ -45,6 +47,7 @@ def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> 
         print("Using zilch.toml from", ctx.obj.path)
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.argument('terms', nargs=-1)
 @click.pass_obj
 def search(ctx: Context, terms: list[str]) -> None:
@@ -65,6 +68,7 @@ def search(ctx: Context, terms: list[str]) -> None:
 
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.argument('term')
 @click.option(
     "--any-source/--match-source",
@@ -93,6 +97,7 @@ def info(ctx: Context, term: str, any_source: bool) -> None:
 
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.argument('packages', nargs=-1)
 @click.pass_obj
 def install(ctx: click.Context, packages: list[str]) -> None:
@@ -103,12 +108,14 @@ def install(ctx: click.Context, packages: list[str]) -> None:
     ctx.project.sync()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.pass_obj
-def autoremove(ctx: click.Context) -> None:
+def autoremove(ctx: Context) -> None:
     ctx.project.sync()
     ctx.project.autoremove()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.option(
     "--any-source/--match-source",
     default=True,
@@ -118,8 +125,9 @@ def autoremove(ctx: click.Context) -> None:
     ),
 )
 @click.argument('packages', nargs=-1)
+@click.help_option("--help", "-h")
 @click.pass_obj
-def remove(ctx: click.Context, any_source: bool, packages: list[str]) -> None:
+def uninstall(ctx: Context, any_source: bool, packages: list[str]) -> None:
     for package in packages:
         ctx.project.remove_package(
             NixPackage.from_name(package, ctx.source),
@@ -128,15 +136,16 @@ def remove(ctx: click.Context, any_source: bool, packages: list[str]) -> None:
     ctx.project.sync()
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
+@click.help_option("--help", "-h")
 @click.argument('cmd', nargs=-1)
+@click.pass_context # need the whole Click context to run ctx.exit(...)
 @click.pass_obj
 def shell(ctx: click.Context, cmd: list[str]) -> None:
-    if not cmd:
-        cmd = [os.environ.get("SHELL", "/bin/bash")]
-    ctx.project.sync()
-    env_vars = ctx.project.get_env_vars()
-    os.execvpe(cmd[0], cmd, {**os.environ, **env_vars})
-
-
-if __name__ == '__main__':
-    cli()
+    ctx.obj.project.sync()
+    env_vars = ctx.obj.project.get_env_vars()
+    proc = subprocess.run(
+        cmd,
+        env={**os.environ, **env_vars},
+        check=False,
+    )
+    ctx.exit(proc.returncode)

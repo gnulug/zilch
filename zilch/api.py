@@ -46,6 +46,9 @@ class ZilchTomlError(ZilchError):
     pass
 
 
+DEFAULT_USER_GLOBAL = pathlib.Path(platformdirs.user_config_dir()) / "zilch/zilch.toml"
+
+
 @dataclasses.dataclass(frozen=True)
 class ZilchProject:
     """In-memory representation of the data in the project-local store.
@@ -64,17 +67,26 @@ class ZilchProject:
     packages: list[NixPackage]
 
     @staticmethod
-    def from_path(toml_path: pathlib.Path) -> ZilchProject:
-        """Initializes a Zilch project from a path/to/dir containing zilch.toml or path/to/zilch.toml"""
+    def from_path(toml_path: pathlib.Path | None) -> ZilchProject:
+        """Initializes a Zilch project from a path/to/zilch.toml or path/to/dir containing zilch.toml"""
 
-        # Normalize path
+        if toml_path is None:
+            if "ZILCH_PATH" in os.environ:
+                toml_path = pathlib.Path(os.environ["ZILCH_PATH"])
+            elif pathlib.Path("zilch.toml").exists():
+                toml_path = pathlib.Path("zilch.toml")
+            else:
+                toml_path = DEFAULT_USER_GLOBAL
+
         if toml_path.is_dir():
-            toml_path = toml_path / "zilch.toml"
+            path = toml_path / "zilch.toml"
+
+        # TODO: nice error handling when toml can't be created
         toml_path.parent.mkdir(exist_ok=True, parents=True)
-        if not toml_path.exists():
-            toml_path.write_text("")
 
         # Parse TOML
+        if not toml_path.exists():
+            toml_path.write_text("")
         toml_doc = tomlkit.parse(toml_path.read_text())
 
         # Parse version
@@ -302,7 +314,7 @@ class ZilchProject:
         self._write_flake()
         NixFlake.build(self.resource_path, ".#zilch-env")
 
-    def get_env_vars(self) -> None:
+    def get_env_vars(self) -> Mapping[str, str]:
         return NixFlake.env_vars(self.resource_path, ".#zilch-env")
 
 

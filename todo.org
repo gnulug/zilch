@@ -6,7 +6,13 @@
 
 * DONE [#A] zilch search prettiness
 
-* TODO [#A] Write tests
+* DONE [#A] Project activation
+1. Flag
+2. Env var
+3. CWD
+4. User-global
+
+* DONE [#A] Write tests
 - End-to-end CLI tests
 
 * TODO [#A] Get a good precommit workflow
@@ -28,7 +34,7 @@
   - zilch source add <source_alias> <URL> [position {first, last, <int>}] [source_version]
   - zilch source remove <source_alias>
   - zilch source upgrade <source_alias>
-  - zilch swap <i> <j> (use zilch list to get an ordered list of sources)
+  - zilch source swap <i> <j> (use zilch list to get an ordered list of sources)
     - See the idea to have a TUI later on, which would be the more user friendly way of manipulating the list. But we should still have a scriptable non-TUI way of doing that.
 - [ ] CLI for manipulating packages
   - zilch install <package_name> --source <source_alias> (no --source given means first source containing the package)
@@ -49,6 +55,9 @@
 
 * DONE [#A] Zilch should pin sources with flake.lock
 - Should modify-in-place flake.lock, if it exists. That way sources the user adds manually to the nix flake won't get clobbered.
+
+* TODO [#A] Zilch init
+- Creates zilch.toml with empty sources and packages section
 
 * TODO [#B] Help the user get their python packages right
 If they ask for python311Packages.foo and then python312Packages.bar, emit warning.
@@ -93,6 +102,23 @@ The user should just `direnv allow $DIR`, and their dir becomes zilched.
 
 * TODO [#B] Use verbose or debug flags
 
+* TODO [#B] Support installing a specific version of a package
+- https://lazamar.github.io/download-specific-package-version-with-nix/
+- Consider using only those commits which touch the file `git rev-list nixos-unstable -- pkgs/applications/editors/neovim/default.nix`
+- Consider using binary search
+- Consider using `nix search repo/?rev=foo` instead of `nix-env -qaP --json -f`
+- https://matthewbauer.us/blog/all-the-versions.html
+- https://github.com/NixOS/nixpkgs/issues/9682#issuecomment-658429316
+- https://github.com/NixOS/nixpkgs/issues/93327
+- https://www.haskellforall.com/2022/05/the-golden-rule-of-software.html
+
+* TODO [#B] Combine package families into environments
+- TeXLive
+- Python
+- Ruby
+- Perl
+- JavaScript
+
 * TODO [#C] Consider strategies to combat the 1000 instances of nixpkgs problem
 - https://discourse.nixos.org/t/1000-instances-of-nixpkgs/17347
 - `inputs.source.nixpkgs.follows = "nixpkgs";`, basically
@@ -117,13 +143,6 @@ https://nixos.wiki/wiki/Python
 - Disable checks?
 - https://nixos.org/manual/nixpkgs/stable/#reference search "How to enable interpreter optimizations?"
 - https://nixos.wiki/wiki/Build_flags
-
-* TODO [#B] Combine package families into environments
-- TeXLive
-- Python
-- Ruby
-- Perl
-- JavaScript
 
 * TODO [#C] Allow the user to set Nix options (per package or globally)
 - Allow unfree
@@ -175,3 +194,8 @@ https://nixos.wiki/wiki/Python
 * TODO [#C] Validate user inputs
 - Source aliases should be valid Nix identifiers (and not reserved by Zilch)
 - Source URLs should be URLs
+
+* TODO [#C] Zilch logo
+
+* TODO [#C] Delete individual paths
+- Zilch try to remove package path if it is not used by other gcroots
