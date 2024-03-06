@@ -14,6 +14,16 @@ import typing
 root = pathlib.Path(__file__).parent.parent
 
 
+TomlAoT = tomlkit.items.AoT
+
+
+_T = typing.TypeVar("_T")
+def expect_type(typ: type[_T], data: typing.Any) -> _T:
+    if not isinstance(data, typ):
+        raise TypeError(f"Expected type {typ} for {data}")
+    return data
+
+
 def parse_attrpath(path) -> tuple[str, str, str]:
     """Parse attribute path from 'nix search'
 
@@ -137,7 +147,7 @@ class ZilchProject:
             for j in range(i + 1, len(packages)):
                 if packages[i] == packages[j]:
                     del packages[j]
-                    del toml_doc["packages"][j]
+                    del expect_type(TomlAoT, toml_doc["packages"])[j]
                     print("Removing duplicate", packages[j])
 
         project = ZilchProject(
@@ -157,14 +167,16 @@ class ZilchProject:
     # https://deal.readthedocs.io/index.html
     def _validate(self) -> None:
         # Validate packages
-        assert len(self.packages) == len(self.toml_doc["packages"])
-        for package, package_dict in zip(self.packages, self.toml_doc["packages"]):
+        toml_packages = expect_type(TomlAoT, self.toml_doc["packages"])
+        assert len(self.packages) == len(toml_packages)
+        for package, package_dict in zip(self.packages, toml_packages):
             assert package.name == package_dict["name"]
             assert package.source.alias == package_dict["source"]
 
         # Validate sources
-        assert len(self.sources) == len(self.toml_doc["sources"])
-        for (alias, source), source_dict in zip(self.sources.items(), self.toml_doc["sources"]):
+        toml_sources = expect_type(TomlAoT, self.toml_doc["packages"])
+        assert len(self.sources) == len(toml_sources)
+        for (alias, source), source_dict in zip(self.sources.items(), toml_sources):
             assert source.url == source_dict["url"]
             assert source.alias == source_dict["alias"] == alias
             assert source.rev == source_dict["rev"]
@@ -225,14 +237,14 @@ class ZilchProject:
             self._write_flake()
             rev = NixFlake.get_rev(self.resource_path, source.alias)
             source.rev = rev
-            self.toml_doc["sources"].append({
+            expect_type(TomlAoT, self.toml_doc["sources"]).append({
                 "url": source.url,
                 "alias": source.alias,
                 "rev": source.rev,
             })
         else:
             self.sources[source.alias] = source
-            self.toml_doc["sources"].append({
+            expect_type(TomlAoT, self.toml_doc["sources"]).append({
                 "url": source.url,
                 "alias": source.alias,
                 "rev": source.rev,
@@ -245,9 +257,10 @@ class ZilchProject:
                 "No source with that alias exists"
             )
         del self.sources[source_alias]
-        for i in range(len(self.toml_doc["sources"])):
-            if self.toml_doc["sources"][i]["alias"] == source_alias:
-                del self.toml_doc["sources"][i]
+        toml_sources = expect_type(TomlAoT, self.toml_doc["sources"])
+        for i in range(len(toml_sources)):
+            if toml_sources[i]["alias"] == source_alias:
+                del toml_sources[i]
                 break
 
     def add_package(self, package: NixPackage) -> None:
@@ -265,7 +278,7 @@ class ZilchProject:
                     f"Cannot add {package}: Already installed"
                 )
         self.packages.append(package)
-        self.toml_doc["packages"].append({
+        expect_type(TomlAoT, self.toml_doc["packages"]).append({
             "name": package.name,
             "source": package.source.alias,
         })
@@ -287,7 +300,7 @@ class ZilchProject:
             )
         else:
             del self.packages[i]
-            del self.toml_doc["packages"][i]
+            del expect_type(TomlAoT, self.toml_doc["packages"])[i]
 
     def status(self, package: NixPackage, any_source: bool) -> str:
         try:
@@ -314,7 +327,7 @@ class ZilchProject:
         self._write_flake()
         NixFlake.build(self.resource_path, ".#zilch-env")
 
-    def get_env_vars(self) -> Mapping[str, str]:
+    def get_env_vars(self) -> typing.Mapping[str, str]:
         return NixFlake.env_vars(self.resource_path, ".#zilch-env")
 
 

@@ -19,10 +19,10 @@ INDENT = 2
 
 @dataclass
 class Context:
-    verbose: bool = None
-    path: str = None
-    project: ZilchProject = None
-    source: NixSource = None
+    verbose: bool
+    path: pathlib.Path
+    project: ZilchProject
+    source: NixSource
 
 @click.group(no_args_is_help=True)
 @click.help_option("--help", "-h")
@@ -35,7 +35,7 @@ class Context:
     help="path/to/dir containing zilch.toml or path/to/zilch.toml. Defaults to $ZILCH_PATH or $XDG_CONFIG_HOME (or platform equivalent)",
 )
 @click.pass_context
-def cli(ctx: click.Context, verbose: bool, source: bool, path: pathlib.Path) -> None:
+def cli(ctx: click.Context, verbose: bool, source: str, path: pathlib.Path) -> None:
     project = ZilchProject.from_path(path)
     ctx.obj = Context(
         verbose,
@@ -100,7 +100,7 @@ def info(ctx: Context, term: str, any_source: bool) -> None:
 @click.help_option("--help", "-h")
 @click.argument('packages', nargs=-1)
 @click.pass_obj
-def install(ctx: click.Context, packages: list[str]) -> None:
+def install(ctx: Context, packages: list[str]) -> None:
     for package in packages:
         ctx.project.add_package(
             NixPackage.from_name(package, ctx.source)
@@ -139,7 +139,6 @@ def uninstall(ctx: Context, any_source: bool, packages: list[str]) -> None:
 @click.help_option("--help", "-h")
 @click.argument('cmd', nargs=-1)
 @click.pass_context # need the whole Click context to run ctx.exit(...)
-@click.pass_obj
 def shell(ctx: click.Context, cmd: list[str]) -> None:
     ctx.obj.project.sync()
     env_vars = ctx.obj.project.get_env_vars()
