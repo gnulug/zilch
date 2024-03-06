@@ -40,7 +40,7 @@ def cli(ctx: click.Context, verbose: bool, source: str, path: pathlib.Path) -> N
         project.sources[source] if source is not None else None
     )
     if ctx.obj.verbose:
-        print("Using zilch.toml from", ctx.obj.path)
+        print("Using zilch.toml from", ctx.obj.project.toml_path)
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!
 @click.help_option("--help", "-h")

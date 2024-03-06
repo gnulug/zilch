@@ -173,7 +173,7 @@ class ZilchProject:
             assert package.source.alias == package_dict["source"]
 
         # Validate sources
-        toml_sources = expect_type(TomlAoT, self.toml_doc["packages"])
+        toml_sources = expect_type(TomlAoT, self.toml_doc["sources"])
         assert len(self.sources) == len(toml_sources)
         for (alias, source), source_dict in zip(self.sources.items(), toml_sources):
             assert source.url == source_dict["url"]
