@@ -54,7 +54,7 @@ def test_zilch_project_uses_cwd() -> None:
 @pytest.mark.skipif(not bool(int(os.environ.get("CLEAN_VM", "0"))), reason="Not running in CLEAN_VM")
 def test_zilch_project_uses_global() -> None:
    runner = CliRunner()
-   with runner.isolated_filesystem() as tmpdir:
+   with runner.isolated_filesystem():
       runner.invoke(
          zilch.cli.cli,
          ["shell", "true"],

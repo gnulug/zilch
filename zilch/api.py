@@ -6,7 +6,6 @@ import urllib.parse
 import sys
 import platformdirs
 import dataclasses
-import tempfile
 import json
 import pathlib
 import subprocess
@@ -89,7 +88,7 @@ class ZilchProject:
                 toml_path = DEFAULT_USER_GLOBAL
 
         if toml_path.is_dir():
-            path = toml_path / "zilch.toml"
+            toml_path = toml_path / "zilch.toml"
 
         # TODO: nice error handling when toml can't be created
         toml_path.parent.mkdir(exist_ok=True, parents=True)

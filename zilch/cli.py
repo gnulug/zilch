@@ -3,11 +3,7 @@ import click
 import subprocess
 import json
 import os
-import sys
-import platformdirs
-import os
-from typing import Mapping, Any
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from rich.table import Table
 from rich.padding import Padding
 
