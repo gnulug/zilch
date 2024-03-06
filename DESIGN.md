@@ -221,6 +221,59 @@ Rather than implement history and rollback directly in the CLI, as the official 
 
 [^manifest]: `nix-env` and `nix profile` do manipulate `manifest.nix` or `manifest.json`, respectively. However, this is hidden from the user, and there is no documentation on how to share these between machines or users. They are also global-scope, not amenable to usage with direnvs.
 
+# Futher reading
+
+## Imperative vs declarative management
+
+- <https://jade.fyi/blog/flakes-arent-real/>
+- <https://stop-using-nix-env.privatevoid.net/>
+- <https://discourse.nixos.org/t/transitioning-from-imperative-to-declarative-package-management-with-nix-alone/28728>
+
+## Suitability of Flakes
+
+- <https://jade.fyi/blog/flakes-arent-real/>
+- <https://nix.dev/concepts/flakes.html#why-are-flakes-controversial>
+- <https://samuel.dionne-riel.com/blog/2023/09/06/flakes-is-an-experiment-that-did-too-much-at-once.html>
+- <https://determinate.systems/posts/experimental-does-not-mean-unstable/>
+
+## Getting old versions
+
+- <https://github.com/NixOS/nixpkgs/issues/9682>
+  - <https://github.com/NixOS/nixpkgs/issues/9682#issuecomment-658424656>
+  - <https://github.com/NixOS/nixpkgs/issues/9682#issuecomment-658429316>
+- <https://www.haskellforall.com/2022/05/the-golden-rule-of-software.html>
+- <https://github.com/NixOS/nixpkgs/issues/93327>
+  - <https://github.com/NixOS/nixpkgs/issues/93327#issuecomment-661986395>
+- <https://matthewbauer.us/blog/all-the-versions.html>
+- <https://lazamar.co.uk/nix-versions/>
+- <https://history.nix-packages.com/>
+- Also consider just changing the source version (not getting an older rev of "flake source")
+- <https://news.ycombinator.com/item?id=28593823>
+- <https://www.nixhub.io/>
+
+## Similar tools
+
+- <https://www.jetpack.io/devbox/>
+- <https://github.com/lf-/flakey-profile>
+- <https://numtide.github.io/devshell/getting_started.html>
+- <https://devenv.sh/>
+- <https://github.com/nmattia/niv>
+- <https://flox.dev/>
+
+### Similar Non-Nix tools
+
+- <https://zap.srev.in/>
+
+## Package mangaer CLI UX
+
+- <https://github.com/srevinsaju/zap/issues/66>
+- <https://github.com/NixOS/nix/issues/7966>
+
+## Nix flake sources
+
+- <https://flakehub.com/>
+- <https://search.nixos.org/flakes
+
 [Repology]: https://repology.org/repositories/graphs
 [ACM-repr]: https://www.acm.org/publications/policies/artifact-review-and-badging-current
 [R13Y]: https://r13y.com/
