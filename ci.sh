@@ -11,4 +11,5 @@ pytest -v
 
 poetry build
 
-nix build
+nix --version
+nix run github:hercules-ci/nix/stack-overflow -- build .
