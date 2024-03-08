@@ -1,17 +1,30 @@
 import pathlib
-import click
+import rich_click as click
 import subprocess
 import json
 import os
+import sys
+import functools
 from dataclasses import dataclass
 from rich.table import Table
 from rich.padding import Padding
 
-from .api import NixPackage, NixSource, ZilchProject
+from .api import NixPackage, NixSource, ZilchProject, ZilchError
 from console import console
 
 SOURCE = "nixpkgs"
 INDENT = 2
+
+def show_zilch_err(func):
+    """Decorator to catch and print ZilchError instead of showing traceback"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except ZilchError as e:
+            console.print(f'[red]Error[/red]: {str(e)}')
+            sys.exit(1)
+    return wrapper
 
 @dataclass
 class Context:
@@ -89,7 +102,7 @@ def info(ctx: Context, term: str, any_source: bool) -> None:
             console.print(Padding.indent(t, INDENT))
             break
     else:
-        console.print(f'No package [bold]{term}[/bold] is installed')
+        raise ZilchError(f'No package {term} is installed')
 
 
 @cli.command(no_args_is_help=True)  # @cli, not @click!

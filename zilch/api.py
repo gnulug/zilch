@@ -228,7 +228,7 @@ class ZilchProject:
     def add_source(self, source: NixSource) -> None:
         if source.alias in self.sources:
             raise ZilchError(
-                f"Cannot add {source}: "
+                f"Cannot add {source.alias}: "
                 "A source with that alias already exists"
             )
         if source.rev is None:
@@ -252,7 +252,7 @@ class ZilchProject:
     def remove_source(self, source_alias) -> None:
         if source_alias not in self.sources:
             raise ZilchError(
-                f"Cannot remove {source_alias}: "
+                f"Cannot remove {source_alias.alias}: "
                 "No source with that alias exists"
             )
         del self.sources[source_alias]
@@ -266,7 +266,7 @@ class ZilchProject:
         if package.source.alias in self.sources:
             if package.source != self.sources[package.source.alias]:
                 raise ZilchError(
-                    f"Cannot add {package} from {package.source}: "
+                    f"Cannot add {package.name} from {package.source}: "
                     f"The alias {package.source.alias} already exists"
                 )
         else:
@@ -274,7 +274,7 @@ class ZilchProject:
         for existing_package in self.packages:
             if existing_package == package:
                 raise ZilchError(
-                    f"Cannot add {package}: Already installed"
+                    f"Cannot add {package.name}: Already installed"
                 )
         self.packages.append(package)
         expect_type(TomlAoT, self.toml_doc["packages"]).append({
@@ -294,7 +294,7 @@ class ZilchProject:
             _, i = self._get_package(package, any_source)
         except KeyError:
             raise ZilchError(
-                f"Cannot remove {package}{' (any source)' if any_source else ''}: "
+                f"Cannot remove {package.name}{' (any source)' if any_source else ''}: "
                 f"{package} not added"
             )
         else:
