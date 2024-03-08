@@ -7,7 +7,7 @@ mypy --package zilch
 
 mypy tests/*.py
 
-pytest
+pytest -v
 
 poetry build
 

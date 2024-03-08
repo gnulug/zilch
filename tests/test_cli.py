@@ -51,7 +51,10 @@ def test_zilch_project_uses_cwd() -> None:
          catch_exceptions=False,
       )
 
-@pytest.mark.skipif(not bool(int(os.environ.get("CLEAN_VM", "0"))), reason="Not running in CLEAN_VM")
+@pytest.mark.skipif(
+   not bool(int(os.environ.get("CLEAN_VM", "0"))),
+   reason="Declining to run tests that modify $HOME because we are not running in CLEAN_VM",
+)
 def test_zilch_project_uses_global() -> None:
    runner = CliRunner()
    with runner.isolated_filesystem():
@@ -74,11 +77,12 @@ def test_search() -> None:
          catch_exceptions=False,
       )
 
-package = "aria"
-executable = "aria2c"
+package = "hello"
+executable = "hello"
+which_executable = subprocess.run(["which", executable], check=False, capture_output=True)
 @pytest.mark.skipif(
-   subprocess.run(["which", package], check=False, capture_output=True).returncode == 0,
-   reason=f"You have {package}, so we can't test its installation/removal",
+   which_executable.returncode == 0,
+   reason=f"You already have {package}, so we can't test its installation/removal. Try choosing a different package/executable",
 )
 def test_install_remove() -> None:
    runner = CliRunner()

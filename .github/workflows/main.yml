@@ -10,3 +10,5 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix develop --command ./ci.sh
+        env:
+          CLEAN_VM: 1
