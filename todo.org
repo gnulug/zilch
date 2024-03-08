@@ -15,10 +15,10 @@
 * DONE [#A] Write tests
 - End-to-end CLI tests
 
-* TODO [#A] Get a good precommit workflow
+* DONE [#A] Get a good precommit workflow
 - ruff, mypy, poetry build, Nix build
 
-* TODO [#A] Get a good CI workflow
+* DONE [#A] Get a good CI workflow
 - ruff, mypy, pytest, poetry build, poetry publish (if tagged), Nix build
 
 * TODO [#A] Read zilch.toml from Flake
@@ -59,8 +59,10 @@
 * TODO [#A] Zilch init
 - Creates zilch.toml with empty sources and packages section
 
-* TODO [#B] Help the user get their python packages right
-If they ask for python311Packages.foo and then python312Packages.bar, emit warning.
+* TODO [#B] Write better documentation
+- Update documentation to match what we actually built
+- Explain _why_ we built it that way
+- Explain installation process
 
 * TODO [#B] Make an installer
 - [ ] Install Nix, if they don't have it already
@@ -103,14 +105,13 @@ The user should just `direnv allow $DIR`, and their dir becomes zilched.
 * TODO [#B] Use verbose or debug flags
 
 * TODO [#B] Support installing a specific version of a package
-- https://lazamar.github.io/download-specific-package-version-with-nix/
-- Consider using only those commits which touch the file `git rev-list nixos-unstable -- pkgs/applications/editors/neovim/default.nix`
-- Consider using binary search
-- Consider using `nix search repo/?rev=foo` instead of `nix-env -qaP --json -f`
-- https://matthewbauer.us/blog/all-the-versions.html
-- https://github.com/NixOS/nixpkgs/issues/9682#issuecomment-658429316
-- https://github.com/NixOS/nixpkgs/issues/93327
-- https://www.haskellforall.com/2022/05/the-golden-rule-of-software.html
+- See "Getting old versions" in DESIGN.md
+- Consider case where they want Python 3.12, and there is a package called python312 in the current version of their source. We only need to match that to a package named python312. However the naming is not consistent (c.f. gcc9).
+- Otherwise, use older version of the source
+  - Note that this is dispreferred since runtime deps may conflict
+  - Consider using only those commits which touch the file `git rev-list nixos-unstable -- pkgs/applications/editors/neovim/default.nix`
+  - Consider using binary search
+  - Consider using `nix search repo/?rev=foo` instead of `nix-env -qaP --json -f`
 
 * TODO [#B] Combine package families into environments
 - TeXLive
@@ -199,3 +200,6 @@ https://nixos.wiki/wiki/Python
 
 * TODO [#C] Delete individual paths
 - Zilch try to remove package path if it is not used by other gcroots
+
+* TODO [#C] Help the user get their python packages right
+If they ask for python311Packages.foo and then python312Packages.bar, emit warning.

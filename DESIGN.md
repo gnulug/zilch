@@ -245,7 +245,7 @@ Rather than implement history and rollback directly in the CLI, as the official 
 - <https://github.com/NixOS/nixpkgs/issues/93327>
   - <https://github.com/NixOS/nixpkgs/issues/93327#issuecomment-661986395>
 - <https://matthewbauer.us/blog/all-the-versions.html>
-- <https://lazamar.co.uk/nix-versions/>
+- <https://lazamar.github.io/download-specific-package-version-with-nix/>
 - <https://history.nix-packages.com/>
 - Also consider just changing the source version (not getting an older rev of "flake source")
 - <https://news.ycombinator.com/item?id=28593823>
