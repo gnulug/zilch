@@ -12,11 +12,12 @@ click = "^8.1.7"
 tomlkit = "^0.12.3"
 rich = "^13.7.0"
 platformdirs = "^4.2.0"
+rich-click = "^1.7.3"
 
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.8.0"
-pytest = "^8.1.0"
+pytest = "^8.0.2"
 
 [tool.poetry.scripts]
 zilch = 'zilch.cli:cli'
